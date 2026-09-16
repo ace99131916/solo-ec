@@ -67,6 +67,42 @@ export default function CartPage() {
           };
         })
       );
+      // 訪客 localStorage 可能是真實 DB UUID（mock 表查不到），再向 DB 補查一次
+      const unknownIds = local.filter((l) => !skuMap.get(l.sku_id)).map((l) => l.sku_id);
+      if (unknownIds.length) {
+        (async () => {
+          try {
+            const sb = createClient();
+            const { data } = await sb
+              .from('product_skus')
+              .select('id,spec_name,price,stock,products(name)')
+              .in('id', unknownIds);
+            if (data?.length) {
+              const m = new Map((data as any[]).map((r: any) => [r.id, r]));
+              setLines(
+                local.map((l) => {
+                  const hit = m.get(l.sku_id) as any;
+                  const mock = skuMap.get(l.sku_id);
+                  if (!hit) {
+                    return {
+                      sku_id: l.sku_id, qty: l.qty,
+                      spec_name: mock?.spec_name ?? l.sku_id,
+                      price: mock?.price ?? 0,
+                      product_name: mock?.product_name ?? '商品（已下架？）',
+                      stock: mock?.stock ?? 99,
+                    };
+                  }
+                  return {
+                    sku_id: l.sku_id, qty: l.qty,
+                    spec_name: hit.spec_name, price: hit.price,
+                    product_name: hit.products?.name ?? '商品', stock: hit.stock,
+                  };
+                })
+              );
+            }
+          } catch {}
+        })();
+      }
     }
   }, []);
 
