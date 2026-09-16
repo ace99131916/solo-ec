@@ -20,9 +20,9 @@ function resp(body: string, status: number, contentType: string): Response {
 const text = (body: string, status: number): Response => resp(body, status, 'text/plain; charset=utf-8');
 
 function enc(s: string): string {
+  // 比照 .NET HttpUtility.UrlEncode：僅 -_.!*() 不編碼，空白轉 +，其餘百分編碼（含 ~ '）
   return encodeURIComponent(s)
-    .replace(/%20/g, '+').replace(/~/g, '%7e').replace(/\(/g, '%28')
-    .replace(/\)/g, '%29').replace(/\*/g, '%2a').replace(/!/g, '%21').replace(/'/g, '%27');
+    .replace(/%20/g, '+').replace(/~/g, '%7e').replace(/'/g, '%27');
 }
 function checkMac(params: Record<string, string>, key: string, iv: string): string {
   const sorted = Object.keys(params).filter((k) => k !== 'CheckMacValue')

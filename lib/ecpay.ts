@@ -3,13 +3,11 @@
 import crypto from 'crypto';
 
 function dotNetUrlEncode(s: string): string {
+  // 比照 .NET HttpUtility.UrlEncode：僅 -_.!*() 不編碼，空白轉 +，其餘百分編碼（含 ~ '）
+  // 注意：絕不能把 ! * ( ) 轉成 %XX，否則 CheckMacValue 會錯（10200073）
   return encodeURIComponent(s)
     .replace(/%20/g, '+')
     .replace(/~/g, '%7e')
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29')
-    .replace(/\*/g, '%2a')
-    .replace(/!/g, '%21')
     .replace(/'/g, '%27');
 }
 
