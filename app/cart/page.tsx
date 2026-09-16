@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { readLocalCart, setQtyLocal, clearLocal } from '@/lib/cart';
+import { readLocalCart, setQtyLocal, clearLocal, mergeLocalToServer } from '@/lib/cart';
 import { mockProducts } from '@/lib/mock';
 
 type Line = {
@@ -32,7 +32,9 @@ export default function CartPage() {
         const { data } = await sb.auth.getUser();
         setUserId(data.user?.id ?? null);
         if (data.user) {
-          // 登入：讀雲端購物車
+          // 登入：先把本機殘留合併上雲再讀，兩邊永遠一致（防刪掉重整又復活）
+          try { await mergeLocalToServer(sb, data.user.id); } catch {}
+          // 登入：讀雲端購物車（唯一真相，不再回頭讀本機）
           const { data: rows } = await sb
             .from('cart_items')
             .select('sku_id,qty,product_skus(spec_name,price,stock,products(name))');
@@ -45,8 +47,7 @@ export default function CartPage() {
               product_name: r.product_skus?.products?.name ?? skuMap.get(r.sku_id)?.product_name ?? '商品',
               stock: r.product_skus?.stock ?? 99,
             })) ?? [];
-          if (mapped.length) setLines(mapped);
-          else hydrateLocal();
+          setLines(mapped);
         } else hydrateLocal();
       } catch {
         hydrateLocal();
@@ -115,10 +116,8 @@ export default function CartPage() {
     setLines((prev) =>
       qty <= 0 ? prev.filter((l) => l.sku_id !== sku_id) : prev.map((l) => (l.sku_id === sku_id ? { ...l, qty } : l))
     );
-    if (!userId) {
-      setQtyLocal(sku_id, qty);
-      return;
-    }
+    setQtyLocal(sku_id, qty); // 本機永遠同步，登入者也一樣（防幽靈商品）
+    if (!userId) return;
     try {
       const sb = createClient();
       if (qty <= 0) await sb.from('cart_items').delete().eq('sku_id', sku_id);

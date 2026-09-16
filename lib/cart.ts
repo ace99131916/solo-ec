@@ -46,6 +46,7 @@ export function clearLocal() {
 }
 
 // 登入後呼叫：把 local 購物車 upsert 到 Supabase
+// 成功後一定要清本機，否則舊資料會在登出/重整後復活（幽靈商品）
 export async function mergeLocalToServer(supabase: any, userId: string) {
   const lines = readLocalCart();
   for (const l of lines) {
@@ -54,4 +55,5 @@ export async function mergeLocalToServer(supabase: any, userId: string) {
       { onConflict: 'user_id,sku_id' }
     );
   }
+  if (lines.length) clearLocal();
 }
