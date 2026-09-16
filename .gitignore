@@ -12,6 +12,9 @@ out/
 # vercel
 .vercel
 
+# supabase cli 暫存
+supabase/.temp/
+
 # logs / os
 *.log
 .DS_Store
