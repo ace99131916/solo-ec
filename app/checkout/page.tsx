@@ -62,7 +62,7 @@ export default function CheckoutPage() {
         p_recipient_phone: String(fd.get('phone') ?? ''),
         p_recipient_address:
           method === 'home' ? String(fd.get('address') ?? '') : `${cvs?.store_name} ${cvs?.store_address}`,
-        p_coupon_code: String(fd.get('coupon') ?? '') || null,
+        p_coupon_code: String(fd.get('coupon') ?? '').trim().toUpperCase() || null,
       });
       if (error) throw new Error(error.message.includes('fetch') ? '尚未設定 Supabase 連線（demo 模式不送單）' : error.message);
       if (method === 'cvs' && cvs) {

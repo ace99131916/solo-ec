@@ -2,10 +2,22 @@
 // GET /functions/v1/ecpay-create?order_id=... (需登入，驗 owner/admin)
 // 呼叫方式：前端用登入 session 的 access_token 以 fetch 帶 Authorization 呼叫，
 // 拿到 auto-submit HTML 後 document.write（瀏覽器直接跳轉無法帶 header）。
+// 注意：瀏覽器跨域呼叫，故需回 CORS header（含 OPTIONS 預檢）。
 // 回傳 auto-submit HTML form 導向綠界
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.0';
 import { createHash } from 'node:crypto';
+
+const CORS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
+
+function resp(body: string, status: number, contentType: string): Response {
+  return new Response(body, { status, headers: { ...CORS, 'Content-Type': contentType } });
+}
+const text = (body: string, status: number): Response => resp(body, status, 'text/plain; charset=utf-8');
 
 function enc(s: string): string {
   return encodeURIComponent(s)
@@ -20,23 +32,26 @@ function checkMac(params: Record<string, string>, key: string, iv: string): stri
 }
 
 serve(async (req) => {
+  // CORS 預檢（瀏覽器帶 Authorization 會先送 OPTIONS）
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+
   const url = new URL(req.url);
   const orderId = url.searchParams.get('order_id');
-  if (!orderId) return new Response('missing order_id', { status: 400 });
+  if (!orderId) return text('missing order_id', 400);
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
   // 驗呼叫者（Gateway 的 verify_jwt 只驗 token 有效，這裡再驗訂單歸屬，防 A 付 B 的單）
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!token) return new Response('missing token', { status: 401 });
+  if (!token) return text('missing token', 401);
   const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return new Response('invalid token', { status: 401 });
+  if (!user) return text('invalid token', 401);
 
   const { data: order } = await supabase.from('orders').select('*, order_items(*)').eq('id', orderId).single();
-  if (!order) return new Response('order not found', { status: 404 });
+  if (!order) return text('order not found', 404);
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (order.user_id !== user.id && profile?.role !== 'admin') {
-    return new Response('forbidden', { status: 403 });
+    return text('forbidden', 403);
   }
 
   const merchantID = Deno.env.get('ECPAY_MERCHANT_ID')!;
@@ -66,5 +81,5 @@ serve(async (req) => {
 
   const inputs = Object.entries(params).map(([k, v]) => `<input type="hidden" name="${k}" value="${v}" />`).join('');
   const html = `<html><body onload="document.forms[0].submit()"><form method="post" action="https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5">${inputs}</form></body></html>`;
-  return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+  return resp(html, 200, 'text/html; charset=utf-8');
 });

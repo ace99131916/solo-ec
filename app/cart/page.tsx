@@ -71,7 +71,7 @@ export default function CartPage() {
   }, []);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.price * l.qty, 0), [lines]);
-  const discount = coupon.trim() === 'WELCOME100' && subtotal >= 500 ? 100 : 0;
+  const discount = coupon.trim().toUpperCase() === 'WELCOME100' && subtotal >= 500 ? 100 : 0;
   const shipping = subtotal === 0 ? 0 : subtotal - discount >= 1000 ? 0 : 60;
   const total = Math.max(subtotal - discount, 0) + shipping;
 
