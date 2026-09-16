@@ -142,17 +142,23 @@ export default function CartPage() {
       <div className="rounded-xl bg-white p-4 shadow-sm">
         {lines.length === 0 && <p className="text-neutral-500">購物車是空的，去 <a className="text-blue-600" href="/products">逛逛</a>。</p>}
         {lines.map((l) => (
-          <div key={l.sku_id} className="flex items-center justify-between border-b py-3 last:border-0">
-            <div>
-              <div className="font-medium">{l.product_name}</div>
-              <div className="text-sm text-neutral-500">{l.spec_name}｜NT$ {l.price}</div>
+          <div key={l.sku_id} className="border-b py-3 last:border-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">{l.product_name}</div>
+                <div className="text-sm text-neutral-500">{l.spec_name}｜NT$ {l.price}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="rounded border px-2" onClick={() => changeQty(l.sku_id, l.qty - 1)}>−</button>
+                <span className="w-6 text-center">{l.qty}</span>
+                <button
+                  className="rounded border px-2 disabled:opacity-30" disabled={l.qty >= Math.min(l.stock, 99)}
+                  title={l.qty >= l.stock ? `庫存僅剩 ${l.stock}` : '增加數量'}
+                  onClick={() => changeQty(l.sku_id, Math.min(l.qty + 1, l.stock, 99))}>＋</button>
+                <button className="ml-2 text-sm text-red-600" onClick={() => { if (confirm(`移除「${l.product_name}」？`)) changeQty(l.sku_id, 0); }}>移除</button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="rounded border px-2" onClick={() => changeQty(l.sku_id, l.qty - 1)}>−</button>
-              <span className="w-6 text-center">{l.qty}</span>
-              <button className="rounded border px-2" onClick={() => changeQty(l.sku_id, Math.min(l.qty + 1, 99))}>＋</button>
-              <button className="ml-2 text-sm text-red-600" onClick={() => changeQty(l.sku_id, 0)}>移除</button>
-            </div>
+            {l.qty >= l.stock && l.stock > 0 && <div className="mt-1 text-right text-xs text-orange-600">已達庫存上限（{l.stock}）</div>}
           </div>
         ))}
       </div>

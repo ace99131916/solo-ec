@@ -21,7 +21,8 @@ export default function MembersAdmin() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜尋 email/姓名/手機" className="rounded border p-1 text-sm" />
         <button onClick={load} className="rounded border px-3 text-sm">搜尋</button>
       </div>
-      <table className="mt-3 w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="mt-3 w-full min-w-[560px] text-sm">
         <thead><tr className="text-left text-neutral-500"><th>會員</th><th>等級/點數</th><th>狀態</th><th>操作</th></tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -37,6 +38,7 @@ export default function MembersAdmin() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

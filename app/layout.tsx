@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { NAV, SITE } from '@/lib/shop';
 import AgeGate from '@/components/AgeGate';
+import CartBadge from '@/components/CartBadge';
 
 export const metadata: Metadata = {
   title: `${SITE.name}｜隱密包裝・24H出貨`,
@@ -25,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <form action="/products" className="hidden md:block">
               <input name="q" placeholder="搜尋商品…" className="rounded-full border px-3 py-1 text-sm" />
             </form>
-            <a href="/cart" className="text-sm">🛒 購物車</a>
+            <CartBadge />
             <a href="/account" className="text-sm">會員中心</a>
             <a href="/login" className="text-sm text-neutral-500">登入</a>
             <a href="/admin" className="text-sm text-neutral-400">後台</a>

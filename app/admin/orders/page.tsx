@@ -44,7 +44,8 @@ export default function AdminOrdersPage() {
         <button onClick={load} className="rounded border px-3 py-1 text-sm">重新整理</button>
       </div>
       {msg && <p className="mt-2 text-sm">{msg}</p>}
-      <table className="mt-4 w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="mt-4 w-full min-w-[640px] text-sm">
         <thead><tr className="text-left text-neutral-500"><th>訂單/時間</th><th>收件</th><th>金額</th><th>狀態/操作</th></tr></thead>
         <tbody>
           {orders.map((o) => (
@@ -64,6 +65,7 @@ export default function AdminOrdersPage() {
           ))}
         </tbody>
       </table>
+      </div>
       <p className="mt-3 text-xs text-neutral-500">常見卡點：綠界 callback 未回寫多半是 ReturnURL 用了 localhost 或 CheckMacValue 大小寫錯誤；出貨請先備貨再按「已出貨」，完成後系統可發 5% 點數（需手動或排程）。</p>
     </div>
   );

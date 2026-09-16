@@ -3,18 +3,38 @@ import { mockProducts, mockCategories } from '@/lib/mock';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProductsPage({ searchParams }: { searchParams: { cat?: string; q?: string } }) {
+export default async function ProductsPage({ searchParams }: { searchParams: { cat?: string; q?: string; sort?: string } }) {
   const cat = searchParams.cat ?? 'all';
   const q = (searchParams.q ?? '').trim();
+  const sort = searchParams.sort ?? 'new';
+  const link = (s: string) => {
+    const p = new URLSearchParams();
+    if (cat !== 'all') p.set('cat', cat);
+    if (q) p.set('q', q);
+    if (s !== 'new') p.set('sort', s);
+    const qs = p.toString();
+    return `/products${qs ? `?${qs}` : ''}`;
+  };
+  const catLink = (slug: string) => {
+    const p = new URLSearchParams();
+    if (slug !== 'all') p.set('cat', slug);
+    if (q) p.set('q', q);
+    if (sort !== 'new') p.set('sort', sort);
+    const qs = p.toString();
+    return `/products${qs ? `?${qs}` : ''}`;
+  };
   let products = mockProducts;
   let cats = mockCategories;
   try {
     const supabase = createServerClient();
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort');
     if (dbCats?.length) cats = [{ slug: 'all', name: '全部' }, ...dbCats];
-    let query = supabase.from('products').select('name,slug,base_price,description,cover_image,categories!inner(slug)').eq('is_active', true);
+    let query = supabase.from('products').select('name,slug,base_price,description,cover_image,created_at,categories!inner(slug)').eq('is_active', true);
     if (cat !== 'all') query = query.eq('categories.slug', cat);
     if (q) query = query.ilike('name', `%${q}%`);
+    if (sort === 'asc') query = query.order('base_price', { ascending: true });
+    else if (sort === 'desc') query = query.order('base_price', { ascending: false });
+    else query = query.order('created_at', { ascending: false });
     const { data } = await query.limit(60);
     if (data?.length) {
       products = data.map((p: any) => ({
@@ -26,13 +46,22 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
     }
   } catch {}
 
-  const filtered = cat === 'all' ? products : products.filter((p) => p.category === cat || !p.category);
+  const filtered = (cat === 'all' ? products : products.filter((p) => p.category === cat || !p.category))
+    .slice()
+    .sort((a, b) => (sort === 'asc' ? a.base_price - b.base_price : sort === 'desc' ? b.base_price - a.base_price : 0));
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">全部商品 {q ? `・搜尋「${q}」` : ''}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">全部商品 {q ? `・搜尋「${q}」` : ''}</h1>
+        <div className="flex gap-1 text-sm">
+          {[['new', '最新'], ['asc', '價格低→高'], ['desc', '價格高→低']].map(([v, t]) => (
+            <a key={v} href={link(v)} className={`rounded-full border px-3 py-1 ${sort === v ? 'bg-black text-white' : 'bg-white'}`}>{t}</a>
+          ))}
+        </div>
+      </div>
       <div className="flex flex-wrap gap-2">
         {cats.map((c) => (
-          <a key={c.slug} href={c.slug === 'all' ? '/products' : `/products?cat=${c.slug}`}
+          <a key={c.slug} href={catLink(c.slug)}
             className={`rounded-full border px-3 py-1 text-sm ${cat === c.slug ? 'bg-black text-white' : 'bg-white'}`}>
             {c.name}
           </a>
