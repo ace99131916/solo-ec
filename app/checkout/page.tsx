@@ -69,7 +69,17 @@ export default function CheckoutPage() {
         // 門市資訊補進訂單（place_order 未收門市欄位時，先存 localStorage 供後台對帳）
         localStorage.setItem(`solo-ec-order-${orderId}`, JSON.stringify(cvs));
       }
-      location.href = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ecpay-create?order_id=${orderId}`;
+      // 取綠界付款表單：需帶登入 token（Edge Function 有開 verify_jwt，直接跳轉帶不了 header）
+      const { data: sess } = await sb.auth.getSession();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ecpay-create?order_id=${orderId}`,
+        { headers: { Authorization: `Bearer ${sess.session?.access_token ?? ''}` } }
+      );
+      if (!res.ok) throw new Error(`取付款單失敗（${res.status}），請重試或聯繫客服`);
+      const html = await res.text();
+      document.open();
+      document.write(html);
+      document.close();
     } catch (e: any) {
       setErr(e.message);
     }

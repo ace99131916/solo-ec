@@ -1,5 +1,7 @@
 // Supabase Edge Function: ecpay-create
 // GET /functions/v1/ecpay-create?order_id=... (需登入，驗 owner/admin)
+// 呼叫方式：前端用登入 session 的 access_token 以 fetch 帶 Authorization 呼叫，
+// 拿到 auto-submit HTML 後 document.write（瀏覽器直接跳轉無法帶 header）。
 // 回傳 auto-submit HTML form 導向綠界
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.44.0';
@@ -23,8 +25,19 @@ serve(async (req) => {
   if (!orderId) return new Response('missing order_id', { status: 400 });
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+  // 驗呼叫者（Gateway 的 verify_jwt 只驗 token 有效，這裡再驗訂單歸屬，防 A 付 B 的單）
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return new Response('missing token', { status: 401 });
+  const { data: { user } } = await supabase.auth.getUser(token);
+  if (!user) return new Response('invalid token', { status: 401 });
+
   const { data: order } = await supabase.from('orders').select('*, order_items(*)').eq('id', orderId).single();
   if (!order) return new Response('order not found', { status: 404 });
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (order.user_id !== user.id && profile?.role !== 'admin') {
+    return new Response('forbidden', { status: 403 });
+  }
 
   const merchantID = Deno.env.get('ECPAY_MERCHANT_ID')!;
   const hashKey = Deno.env.get('ECPAY_HASH_KEY')!;
