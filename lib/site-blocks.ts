@@ -44,7 +44,7 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
   };
 }
 
-export const BLOCK_IDS = ['announcement', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust'] as const;
+export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
   {
@@ -55,6 +55,15 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     sort: 5,
     titleSize: 'sm',
     theme: 'dark',
+  },
+  {
+    id: 'line',
+    title: '',
+    subtitle: '',
+    visible: false,
+    sort: 0,
+    titleSize: 'sm',
+    theme: 'light',
   },
   {
     id: 'hero',

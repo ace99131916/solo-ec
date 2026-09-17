@@ -5,6 +5,7 @@ import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getH
 
 const BLOCK_LABEL: Record<string, string> = {
   announcement: '頂部公告列（最上方黑條）',
+  line: 'LINE 浮動客服（右下角固定鈕）',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',
@@ -150,7 +151,7 @@ export default function SiteEditor() {
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="block text-sm">
-                <span className="text-neutral-500">標題文字</span>
+                <span className="text-neutral-500">{r.id === 'line' ? 'LINE 連結（須 http 開頭，如 https://line.me/R/ti/p/@你的ID）' : '標題文字'}</span>
                 <input
                   value={r.title}
                   onChange={(e) => patch(r.id, { title: e.target.value })}

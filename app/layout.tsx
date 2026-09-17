@@ -6,6 +6,7 @@ import { getSiteBlocks, DEFAULT_BLOCKS } from '@/lib/site-blocks';
 import { createServerClient } from '@/lib/supabase';
 import AgeGate from '@/components/AgeGate';
 import CartBadge from '@/components/CartBadge';
+import LineFloat from '@/components/LineFloat';
 
 const serif = Noto_Serif_TC({ subsets: ['latin'], weight: ['600', '700', '900'], variable: '--font-serif' });
 const sans = Noto_Sans_TC({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-sans' });
@@ -25,10 +26,17 @@ function SearchIcon() {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let announcement = DEFAULT_BLOCKS.find((b) => b.id === 'announcement')!;
+  let lineUrl = '';
+  let lineVisible = false;
   try {
     const blocks = await getSiteBlocks(createServerClient());
     const found = blocks.find((b) => b.id === 'announcement');
     if (found) announcement = found;
+    const line = blocks.find((b) => b.id === 'line');
+    if (line && line.visible && line.title.startsWith('http')) {
+      lineUrl = line.title.trim();
+      lineVisible = true;
+    }
   } catch {}
   return (
     <html lang="zh-Hant">
@@ -106,6 +114,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
           <div className="border-t border-white/10 py-4 text-center text-xs tracking-wide text-cream-100/40">© {new Date().getFullYear()} {SITE.name}・Demo 佔位圖文，上線前請更換・未滿 18 歲請勿瀏覽</div>
         </footer>
+        {lineVisible && <LineFloat url={lineUrl} />}
       </body>
     </html>
   );
