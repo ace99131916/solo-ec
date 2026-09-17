@@ -15,6 +15,7 @@
 - [ ] 綠界換正式 MerchantID/Key/IV＋正式網域切換。
 
 ## Session log（新到舊）
+- 2026-09-17：右下角 LINE 浮動客服鈕（連結後台可設，預設隱藏）；SQL 順序加 line-float。
 - 2026-09-17：建立 AGENTS.md＋MEMORY.md 跨 session 記憶；頂部公告列改後台可管（59bdf9d，已推）。
 - 2026-09-17：商品介紹區（detail_text/detail_images）、商品名編輯、SKU 編輯/停用/刪除。
 - 2026-09-16：Hero 改自動輪播＋點圖進商品頁；Banner 圖片改選填；知識專欄後台＋guides 表。
