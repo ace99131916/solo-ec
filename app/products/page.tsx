@@ -39,7 +39,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
     if (data?.length) {
       products = data.map((p: any) => ({
         name: p.name, slug: p.slug, category: cat, description: p.description ?? '',
-        base_price: p.base_price, is_featured: false, skus: [],
+        base_price: p.base_price, cover_image: p.cover_image ?? null, is_featured: false, skus: [],
       }));
     } else if (q || cat !== 'all') {
       products = [];
@@ -71,7 +71,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {filtered.map((p) => (
           <a key={p.slug} href={`/products/${p.slug}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
-            <div className="flex h-28 items-center justify-center rounded-lg bg-neutral-100 text-4xl">📦</div>
+            {(p as any).cover_image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={(p as any).cover_image} alt={p.name} className="h-28 w-full rounded-lg bg-neutral-50 object-contain" loading="lazy" />
+            ) : (
+              <div className="flex h-28 items-center justify-center rounded-lg bg-neutral-100 text-4xl">📦</div>
+            )}
             <div className="mt-2 text-sm font-medium">{p.name}</div>
             <div className="mt-1 line-clamp-2 text-xs text-neutral-500">{p.description}</div>
             <div className="mt-1 font-bold text-red-600">NT$ {p.base_price}</div>

@@ -67,9 +67,9 @@ export default async function Home() {
     guides = await getGuides(supabase);
     const { data: b } = await supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5);
     if (b?.length) banners = b;
-    const { data: p } = await supabase.from('products').select('name,slug,base_price,description').eq('is_active', true).eq('is_featured', true).limit(8);
+    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image').eq('is_active', true).eq('is_featured', true).limit(8);
     if (p?.length) {
-      featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, is_featured: true, skus: [] }));
+      featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: x.cover_image ?? null, is_featured: true, skus: [] }));
     }
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
     if (dbCats?.length) cats = dbCats;
@@ -185,12 +185,19 @@ export default async function Home() {
               className={`fade-in-up stagger-${(i % 4) + 1} card-lift group overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft`}
             >
               <div className="relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-cream-100 to-cream-200">
-                <div className="font-serif text-5xl font-black text-ink-950/10 transition group-hover:scale-110">{String(i + 1).padStart(2, '0')}</div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-ink-800 shadow-soft backdrop-blur">
-                    <BoxIcon />
-                  </span>
-                </div>
+                {(p as any).cover_image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={(p as any).cover_image} alt={p.name} className="absolute inset-0 h-full w-full bg-white object-contain" loading="lazy" />
+                ) : (
+                  <>
+                    <div className="font-serif text-5xl font-black text-ink-950/10 transition group-hover:scale-110">{String(i + 1).padStart(2, '0')}</div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/80 text-ink-800 shadow-soft backdrop-blur">
+                        <BoxIcon />
+                      </span>
+                    </div>
+                  </>
+                )}
                 {i < 3 && (
                   <span className="absolute left-3 top-3 rounded-full bg-ink-950 px-2.5 py-1 text-[11px] font-bold tracking-wide text-gold-300">
                     TOP {i + 1}
