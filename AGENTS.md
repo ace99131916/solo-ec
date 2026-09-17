@@ -20,7 +20,8 @@
 
 ## Supabase SQL 執行順序（Dashboard → SQL Editor）
 1. `supabase/schema-fixed.sql` → 2. `seed.sql` → 3. `site-blocks.sql` → 4. `hero-settings.sql` →
-5. `guides.sql` → 6. `product-detail.sql` → 7. `banners-optional-image.sql` → 8. `announcement.sql`
+5. `guides.sql` → 6. `product-detail.sql` → 7. `banners-optional-image.sql` → 8. `announcement.sql` →
+9. `line-float.sql` → 10. `footer.sql`
 - 新表還沒建時前台一律用程式內預設值 fallback，站不會壞，後台會提示建表。
 
 ## 後台地圖（/admin）
