@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lineUrl = line.title.trim();
       lineVisible = true;
     }
-    const footerPayload = getFooterPayload(blocks.find((b) => b.id === 'footer'));
+    footerPayload = getFooterPayload(blocks.find((b) => b.id === 'footer'));
   } catch {}
   return (
     <html lang="zh-Hant">
