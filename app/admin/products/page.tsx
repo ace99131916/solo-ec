@@ -17,7 +17,8 @@ export default function AdminProductsPage() {
 
   async function load() {
     const sb = createClient();
-    const { data } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,category_id,cover_image,product_skus(qty,is_active)').order('created_at', { ascending: false }).limit(500);
+    const { data, error } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,category_id,cover_image,product_skus(stock,is_active)').order('created_at', { ascending: false }).limit(500);
+    if (error) { setMsg(`商品列表載入失敗：${error.message}`); return; }
     if (data) setRows(data);
     const { data: catData } = await sb.from('categories').select('id,name,slug').order('sort').limit(100);
     if (catData) setCats(catData);
@@ -25,7 +26,7 @@ export default function AdminProductsPage() {
   useEffect(() => { load(); }, []);
 
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? '未分類';
-  const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.qty ?? 0), 0);
+  const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.stock ?? 0), 0);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
