@@ -31,7 +31,7 @@ export default function CartBadge() {
     };
   }, []);
   return (
-    <a href="/cart" className="relative text-sm">
+    <a href="/cart" className="relative whitespace-nowrap text-[13px]">
       🛒 購物車
       {count > 0 && (
         <span className="absolute -right-3 -top-2 rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">

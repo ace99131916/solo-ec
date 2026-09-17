@@ -1,75 +1,103 @@
 import type { Metadata } from 'next';
+import { Noto_Serif_TC, Noto_Sans_TC } from 'next/font/google';
 import './globals.css';
 import { NAV, SITE } from '@/lib/shop';
 import AgeGate from '@/components/AgeGate';
 import CartBadge from '@/components/CartBadge';
+
+const serif = Noto_Serif_TC({ subsets: ['latin'], weight: ['600', '700', '900'], variable: '--font-serif' });
+const sans = Noto_Sans_TC({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: `${SITE.name}｜隱密包裝・24H出貨`,
   description: 'Next.js + Supabase 中小型購物車：前台＋會員中心＋管理後台＋綠界金流',
 };
 
+function SearchIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-Hant">
-      <body className="min-h-screen bg-neutral-50 text-neutral-900">
+      <body className={`${serif.variable} ${sans.variable} min-h-screen bg-cream-50 font-sans text-ink-900 antialiased`}>
         <AgeGate />
-        <div className="bg-black py-1 text-center text-xs text-white">{SITE.slogan}｜首購碼 WELCOME100（滿500折100）</div>
-        <header className="sticky top-0 z-40 border-b bg-white">
-          <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-            <a href="/" className="text-lg font-black">{SITE.name}</a>
-            <div className="hidden flex-1 items-center gap-3 text-sm lg:flex">
+        <div className="bg-ink-950 py-2 text-center text-[11px] tracking-[0.2em] text-gold-200">
+          {SITE.slogan} ｜ 首購碼 WELCOME100（滿500折100）
+        </div>
+        <header className="sticky top-0 z-40 border-b border-ink-900/10 bg-cream-50/85 backdrop-blur-md">
+          <nav className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5">
+            <a href="/" className="shrink-0 font-serif text-lg font-black tracking-tight">
+              {SITE.name}
+              <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-gold-500 align-middle" />
+            </a>
+            <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-x-auto text-[13px] tracking-wide text-ink-700 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden">
               {NAV.slice(0, 8).map((c) => (
-                <a key={c.slug} className="text-neutral-600 hover:text-black" href={`/products?cat=${c.slug}`}>{c.name}</a>
+                <a key={c.slug} className="nav-link shrink-0 whitespace-nowrap hover:text-ink-950" href={`/products?cat=${c.slug}`}>{c.name}</a>
               ))}
             </div>
-            <form action="/products" className="hidden md:block">
-              <input name="q" placeholder="搜尋商品…" className="rounded-full border px-3 py-1 text-sm" />
+            <form action="/products" className="hidden shrink-0 items-center gap-1.5 rounded-full border border-ink-900/15 bg-white/70 px-2.5 py-1 text-xs transition focus-within:border-gold-500 md:flex">
+              <span className="text-ink-700/60"><SearchIcon /></span>
+              <input name="q" placeholder="搜尋…" className="w-20 bg-transparent outline-none placeholder:text-ink-700/40 lg:w-28" />
             </form>
-            <CartBadge />
-            <a href="/account" className="text-sm">會員中心</a>
-            <a href="/login" className="text-sm text-neutral-500">登入</a>
-            <a href="/admin" className="text-sm text-neutral-400">後台</a>
+            <span className="shrink-0"><CartBadge /></span>
+            <span className="hidden h-4 w-px shrink-0 bg-ink-900/15 sm:block" />
+            <a href="/account" className="hidden shrink-0 whitespace-nowrap text-[13px] font-medium hover:text-gold-600 sm:block">會員中心</a>
+            <a href="/login" className="shrink-0 whitespace-nowrap rounded-full bg-ink-950 px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-ink-800">登入</a>
+            <a href="/admin" className="hidden shrink-0 whitespace-nowrap text-[13px] text-ink-700/50 hover:text-ink-900 xl:block">後台</a>
           </nav>
-          <div className="border-t bg-neutral-50 lg:hidden">
-            <div className="mx-auto flex max-w-6xl gap-3 overflow-x-auto px-4 py-2 text-sm">
+          <div className="border-t border-ink-900/5 bg-cream-50 lg:hidden">
+            <div className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-4 py-2.5 text-[13px]">
               {NAV.map((c) => (
-                <a key={c.slug} className="whitespace-nowrap text-neutral-600" href={`/products?cat=${c.slug}`}>{c.name}</a>
+                <a key={c.slug} className="whitespace-nowrap text-ink-700/80" href={`/products?cat=${c.slug}`}>{c.name}</a>
               ))}
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
-        <footer className="mt-12 border-t bg-white">
-          <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm md:grid-cols-4">
+        <main className="mx-auto max-w-6xl px-4 py-8 md:py-10">{children}</main>
+        <footer className="relative mt-16 overflow-hidden bg-ink-950 text-cream-100">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 text-sm md:grid-cols-[1.3fr_1fr_1fr_1fr]">
             <div>
-              <div className="font-bold">{SITE.name}</div>
-              <p className="mt-1 text-neutral-500">隱密包裝・品名標示為「生活用品」<br />24H 出貨・滿千免運・原廠正貨</p>
+              <div className="font-serif text-lg font-bold text-white">{SITE.name}</div>
+              <p className="mt-3 max-w-xs leading-7 text-cream-100/60">
+                隱密包裝・品名標示為「生活用品」
+                <br />24H 出貨・滿千免運・原廠正貨
+                <br />每筆訂單 5% 點數回饋
+              </p>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs text-gold-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                本日已出貨・匿名包裝處理中
+              </div>
             </div>
             <div>
-              <div className="font-bold">購物說明</div>
-              <ul className="mt-1 space-y-1 text-neutral-600">
-                <li><a href="/guide">付款與物流</a></li>
-                <li><a href="/guide">退換貨政策（貼身用品拆封恕不退換）</a></li>
-                <li><a href="/products">全部商品</a></li>
+              <div className="text-xs font-bold tracking-[0.2em] text-gold-300">購物說明</div>
+              <ul className="mt-3 space-y-2.5 text-cream-100/70">
+                <li><a className="hover:text-white" href="/guide">付款與物流</a></li>
+                <li><a className="hover:text-white" href="/guide">退換貨政策（貼身用品拆封恕不退換）</a></li>
+                <li><a className="hover:text-white" href="/products">全部商品</a></li>
               </ul>
             </div>
             <div>
-              <div className="font-bold">會員服務</div>
-              <ul className="mt-1 space-y-1 text-neutral-600">
-                <li><a href="/account">訂單查詢</a></li>
-                <li><a href="/account">點數查詢（每筆回饋 5%）</a></li>
-                <li><a href="/login">登入 / 註冊</a></li>
+              <div className="text-xs font-bold tracking-[0.2em] text-gold-300">會員服務</div>
+              <ul className="mt-3 space-y-2.5 text-cream-100/70">
+                <li><a className="hover:text-white" href="/account">訂單查詢</a></li>
+                <li><a className="hover:text-white" href="/account">點數查詢（每筆回饋 5%）</a></li>
+                <li><a className="hover:text-white" href="/login">登入 / 註冊</a></li>
               </ul>
             </div>
             <div>
-              <div className="font-bold">聯絡我們</div>
-              <p className="mt-1 text-neutral-600">{SITE.serviceEmail}<br />客服時間 平日 10:00–18:00</p>
+              <div className="text-xs font-bold tracking-[0.2em] text-gold-300">聯絡我們</div>
+              <p className="mt-3 leading-7 text-cream-100/70">{SITE.serviceEmail}<br />客服時間 平日 10:00–18:00</p>
             </div>
           </div>
-          <div className="border-t py-3 text-center text-xs text-neutral-400">© {new Date().getFullYear()} {SITE.name}・Demo 佔位圖文，上線前請更換・🔞 未滿 18 歲請勿瀏覽</div>
+          <div className="border-t border-white/10 py-4 text-center text-xs tracking-wide text-cream-100/40">© {new Date().getFullYear()} {SITE.name}・Demo 佔位圖文，上線前請更換・未滿 18 歲請勿瀏覽</div>
         </footer>
       </body>
     </html>
   );
 }
+

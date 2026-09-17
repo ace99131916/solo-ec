@@ -1,6 +1,10 @@
-import { GUIDES } from '@/lib/shop';
+import { createServerClient } from '@/lib/supabase';
+import { getGuides } from '@/lib/guides';
 
-export default function GuidePage() {
+export const dynamic = 'force-dynamic';
+
+export default async function GuidePage() {
+  let guides = await getGuidesSafe();
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="text-xl font-bold">💡 知識專欄・付款與物流說明</h1>
@@ -14,13 +18,22 @@ export default function GuidePage() {
         <b>隱私</b>
         <p>訂單明細不會出現在帳單，帳單顯示為綠界或商城名稱。會員資料僅用於出貨與客服。</p>
       </div>
-      {GUIDES.map((g) => (
-        <article key={g.slug} className="rounded-xl bg-white p-5 shadow-sm">
+      {guides.map((g) => (
+        <article key={g.slug} id={g.slug} className="scroll-mt-24 rounded-xl bg-white p-5 shadow-sm">
           <h2 className="font-bold">{g.title}</h2>
-          <p className="mt-1 text-sm text-neutral-600">{g.desc}</p>
-          <p className="mt-2 text-sm text-neutral-500">（示範內文，上線前請換成自家 SEO 文章。建議每篇 800–1500 字＋3 張圖＋內連到商品。）</p>
+          <p className="mt-1 text-sm text-neutral-600">{g.excerpt}</p>
+          {g.content ? <p className="mt-2 text-sm leading-7 text-neutral-700">{g.content}</p> : null}
         </article>
       ))}
     </div>
   );
+}
+
+async function getGuidesSafe() {
+  try {
+    return await getGuides(createServerClient());
+  } catch {
+    const { GUIDES } = await import('@/lib/shop');
+    return GUIDES.map((g) => ({ id: g.slug, slug: g.slug, title: g.title, excerpt: g.desc, content: '' }));
+  }
 }

@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase';
 import { mockProducts } from '@/lib/mock';
 import { notFound } from 'next/navigation';
 import AddToCart from '@/components/AddToCart';
+import ProductGallery from '@/components/ProductGallery';
+import { isVideoUrl } from '@/lib/media';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +25,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
       if (data.category_id) {
         const { data: rel } = await supabase
           .from('products')
-          .select('name,slug,base_price')
+          .select('name,slug,base_price,cover_image')
           .eq('is_active', true)
           .eq('category_id', data.category_id)
           .neq('slug', params.slug)
@@ -47,10 +49,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         {cat && <> / <a href={`/products?cat=${cat.slug}`} className="hover:text-black">{cat.name}</a></>} / {product.name}
       </nav>
       <div className="grid gap-8 md:grid-cols-2">
-        <div>
-          <div className="flex h-72 items-center justify-center rounded-xl bg-white text-6xl shadow-sm">📦</div>
-          <p className="mt-2 text-center text-xs text-neutral-400">圖片留白區：上傳到 product-images 後於後台填 cover_image 顯示</p>
-        </div>
+        <ProductGallery name={product.name} cover={(product as any).cover_image} images={(product as any).images} />
         <div>
           <div className="flex flex-wrap items-center gap-2">
             {product.is_featured && <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">👑 熱銷</span>}
@@ -94,10 +93,38 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {related.map((r: any) => (
               <a key={r.slug} href={`/products/${r.slug}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
-                <div className="flex h-24 items-center justify-center rounded-lg bg-neutral-100 text-3xl">📦</div>
+                {r.cover_image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.cover_image} alt={r.name} className="h-24 w-full rounded-lg object-cover" loading="lazy" />
+                ) : (
+                  <div className="flex h-24 items-center justify-center rounded-lg bg-neutral-100 text-3xl">📦</div>
+                )}
                 <div className="mt-2 text-sm font-medium">{r.name}</div>
                 <div className="font-bold text-red-600">NT$ {r.base_price}</div>
               </a>
+            ))}
+          </div>
+        </section>
+      )}
+      {(((product as any).detail_text as string) || ((product as any).detail_images ?? []).length > 0) && (
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="border-b px-6 py-4">
+            <h2 className="font-serif text-xl font-bold">商品介紹</h2>
+            <p className="mt-0.5 text-xs text-neutral-400">規格・材質・使用方式・注意事項</p>
+          </div>
+          <div className="space-y-5 px-6 py-6">
+            {(product as any).detail_text ? (
+              <p className="whitespace-pre-line text-sm leading-7 text-neutral-700">{(product as any).detail_text}</p>
+            ) : null}
+            {((product as any).detail_images ?? []).map((url: string, i: number) => (
+              <div key={`${url}-${i}`} className="overflow-hidden rounded-xl bg-neutral-100">
+                {isVideoUrl(url) ? (
+                  <video src={url} controls playsInline preload="metadata" className="max-h-[480px] w-full" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={url} alt={`${product.name} 介紹圖 ${i + 1}`} className="w-full object-cover" loading="lazy" />
+                )}
+              </div>
             ))}
           </div>
         </section>

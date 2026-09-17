@@ -20,7 +20,8 @@ function Block({ title, table, fields }: { title: string; table: string; fields:
     if (table === 'coupons' && !payload.code) { setMsg('優惠碼必填'); return; }
     if (table === 'coupons') { payload.discount_type = payload.discount_type || 'fixed'; payload.discount_value = Number(payload.discount_value || 100); }
     if (table === 'categories' && !payload.slug) { setMsg('slug 必填'); return; }
-    if (table === 'banners' && !payload.image_url) { setMsg('圖片 URL 必填（先上傳 Storage）'); return; }
+    if (table === 'banners' && !payload.title) { setMsg('標題必填'); return; }
+    if (table === 'banners' && !payload.image_url) { payload.image_url = ''; }
     const { error } = await createClient().from(table).insert(payload);
     setMsg(error ? `失敗：${error.message}` : '已新增');
     if (!error) { setForm({}); load(); }
@@ -69,5 +70,15 @@ export function CouponsAdmin() {
   return <Block title="優惠券管理" table="coupons" fields={[{ key: 'code', label: '優惠碼 (如 WELCOME100)' }, { key: 'name', label: '名稱' }, { key: 'discount_type', label: 'fixed/percent' }, { key: 'discount_value', label: '折抵金額或折扣' }, { key: 'min_amount', label: '最低金額' }]} />;
 }
 export function BannersAdmin() {
-  return <Block title="Banner 管理" table="banners" fields={[{ key: 'title', label: '標題' }, { key: 'image_url', label: '圖片 URL' }, { key: 'link_url', label: '連結 (/products)' }, { key: 'sort', label: '排序' }]} />;
+  return (
+    <div className="space-y-3">
+      <p className="rounded-xl bg-cream-50 p-3 text-sm leading-6 text-ink-700">
+        這裡管首頁 Hero 右側<b>自動輪播照片牆</b>（5 秒一張，懸停暫停，可點點點/箭頭切換）。
+        <br />・<b>圖片 URL</b>：有圖顯示圖，沒圖顯示質感漸層＋標題。圖片請先上傳 Supabase Storage（banners）後貼 URL，建議 1200×800。
+        <br />・<b>連結</b>：點整張圖的目的地。連到指定商品填 <code className="rounded bg-white px-1">/products/商品slug</code>，連到分類填 <code className="rounded bg-white px-1">/products?cat=分類slug</code>。
+        <br />・只取<b>上架中前 5 筆</b>，用排序決定播放順序。
+      </p>
+      <Block title="Banner 管理（Hero 輪播）" table="banners" fields={[{ key: 'title', label: '標題（圖上大字）' }, { key: 'image_url', label: '圖片 URL（建議1200x800，可留空）' }, { key: 'link_url', label: '連結 (/products/商品slug)' }, { key: 'sort', label: '排序（小先播）' }]} />
+    </div>
+  );
 }
