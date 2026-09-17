@@ -5,21 +5,34 @@ import { createClient } from '@/lib/supabase-client';
 
 export default function AdminProductsPage() {
   const [rows, setRows] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '' });
+  const [cats, setCats] = useState<any[]>([]);
+  const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '' });
   const [skuForm, setSkuForm] = useState<Record<string, { spec: string; price: string; stock: string }>>({});
   const [msg, setMsg] = useState('');
   const [uploading, setUploading] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ name: '', base_price: 0, description: '' });
+  const [editDraft, setEditDraft] = useState({ name: '', description: '', category_id: '' });
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [skuEditDraft, setSkuEditDraft] = useState({ spec: '', price: '', stock: '' });
 
   async function load() {
     const sb = createClient();
-    const { data } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,description,cover_image,images,detail_text,detail_images,product_skus(id,sku_code,spec_name,price,stock,is_active)').order('created_at', { ascending: false }).limit(200);
+    const { data } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,description,category_id,cover_image,images,detail_text,detail_images,product_skus(id,sku_code,spec_name,price,stock,is_active)').order('created_at', { ascending: false }).limit(200);
     if (data) setRows(data);
+    const { data: catData } = await sb.from('categories').select('id,name,slug').order('sort').limit(100);
+    if (catData) setCats(catData);
   }
   useEffect(() => { load(); }, []);
+
+  // 售價單一真相：取啟用中 SKU 最低價回寫商品主售價（前台列表和詳情一致）
+  async function syncBasePrice(productId: string) {
+    const sb = createClient();
+    const { data } = await sb.from('product_skus').select('price').eq('product_id', productId).eq('is_active', true);
+    if (data?.length) {
+      const min = Math.min(...data.map((s: any) => s.price));
+      await sb.from('products').update({ base_price: min }).eq('id', productId);
+    }
+  }
 
   async function create() {
     setMsg('');
@@ -28,11 +41,12 @@ export default function AdminProductsPage() {
     const { data, error } = await sb.from('products').insert({
       name: form.name, slug: form.slug, base_price: Number(form.base_price),
       description: form.description, is_featured: form.is_featured, is_active: true,
+      category_id: form.category_id || null,
     }).select('id').single();
     if (error) { setMsg(`新增失敗：${error.message}`); return; }
     await sb.from('product_skus').insert({ product_id: data.id, sku_code: `${form.slug.toUpperCase()}-STD`, spec_name: '標準', price: Number(form.base_price), stock: 50 });
-    setMsg('已新增（含一組標準 SKU），請再到 Table Editor 補圖與分類');
-    setForm({ name: '', slug: '', base_price: 990, is_featured: false, description: '' });
+    setMsg('已新增（含一組標準 SKU），可再上傳圖片／選分類已直接完成');
+    setForm({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '' });
     load();
   }
 
@@ -44,7 +58,7 @@ export default function AdminProductsPage() {
 
   function startEdit(p: any) {
     setEditingId(p.id);
-    setEditDraft({ name: p.name ?? '', base_price: p.base_price ?? 0, description: p.description ?? '' });
+    setEditDraft({ name: p.name ?? '', description: p.description ?? '', category_id: p.category_id ?? '' });
   }
 
   async function saveInfo(productId: string) {
@@ -52,8 +66,8 @@ export default function AdminProductsPage() {
     setMsg('儲存中…');
     const { error } = await createClient().from('products').update({
       name: editDraft.name.trim(),
-      base_price: Number(editDraft.base_price) || 0,
       description: editDraft.description,
+      category_id: editDraft.category_id || null,
     }).eq('id', productId);
     setMsg(error ? `儲存失敗：${error.message}` : '商品基本資料已更新，前台即時顯示。');
     if (!error) {
@@ -72,6 +86,7 @@ export default function AdminProductsPage() {
       await sb.from('product_skus').insert({ product_id: productId, sku_code: `SKU-${Date.now().toString(36).toUpperCase()}`, spec_name: f.spec, price: Number(f.price), stock: Number(f.stock || 0) });
     }
     setMsg('SKU 已儲存（超賣防護靠下單 RPC 鎖庫存，勿手動把庫存設負數）');
+    await syncBasePrice(productId);
     load();
   }
 
@@ -80,7 +95,7 @@ export default function AdminProductsPage() {
     setSkuEditDraft({ spec: s.spec_name ?? '', price: String(s.price ?? ''), stock: String(s.stock ?? '') });
   }
 
-  async function updateSku(skuId: string) {
+  async function updateSku(productId: string, skuId: string) {
     if (!skuEditDraft.spec.trim() || !skuEditDraft.price) { setMsg('規格與價格不可空白'); return; }
     setMsg('儲存中…');
     const { error } = await createClient().from('product_skus').update({
@@ -88,23 +103,28 @@ export default function AdminProductsPage() {
       price: Number(skuEditDraft.price),
       stock: Number(skuEditDraft.stock || 0),
     }).eq('id', skuId);
-    setMsg(error ? `儲存失敗：${error.message}` : '規格已更新，前台即時顯示。');
+    setMsg(error ? `儲存失敗：${error.message}` : '規格已更新，商品售價已同步為 SKU 最低價。');
     if (!error) {
       setEditingSkuId(null);
+      await syncBasePrice(productId);
       load();
     }
   }
 
-  async function toggleSkuActive(s: any) {
+  async function toggleSkuActive(s: any, productId: string) {
     await createClient().from('product_skus').update({ is_active: !s.is_active }).eq('id', s.id);
+    await syncBasePrice(productId);
     load();
   }
 
-  async function deleteSku(s: any) {
+  async function deleteSku(s: any, productId: string) {
     if (!confirm(`確定刪除規格「${s.spec_name}」？購物車內該規格會一併移除（歷史訂單不受影響）。`)) return;
     const { error } = await createClient().from('product_skus').delete().eq('id', s.id);
-    setMsg(error ? `刪除失敗：${error.message}` : '規格已刪除。');
-    if (!error) load();
+    setMsg(error ? `刪除失敗：${error.message}` : '規格已刪除，商品售價已同步。');
+    if (!error) {
+      await syncBasePrice(productId);
+      load();
+    }
   }
 
   // 上傳圖片/影片到 product-images bucket，回寫 cover_image；asGallery=true 則附加到 images 多圖（含影片）
@@ -186,10 +206,14 @@ export default function AdminProductsPage() {
     <div className="space-y-4">
       <div className="rounded bg-white p-4">
         <h1 className="font-bold">新增商品</h1>
-        <div className="mt-2 grid gap-2 md:grid-cols-5">
+        <div className="mt-2 grid gap-2 md:grid-cols-6">
           <input className="rounded border p-2" placeholder="商品名" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="rounded border p-2" placeholder="slug (英文-唯一)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
           <input className="rounded border p-2" type="number" placeholder="售價" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) })} />
+          <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="rounded border bg-white p-2">
+            <option value="">分類（未分類）</option>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
           <input className="rounded border p-2 md:col-span-2" placeholder="簡短描述" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="mt-2 flex items-center gap-2 text-sm">
@@ -201,8 +225,9 @@ export default function AdminProductsPage() {
       {rows.map((p) => (
         <div key={p.id} className="rounded bg-white p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <b>{p.name}</b><span className="text-xs text-neutral-500">{p.slug}｜NT$ {p.base_price}</span>
-            <button onClick={() => (editingId === p.id ? setEditingId(null) : startEdit(p))} className="rounded border px-2 py-0.5 text-xs">{editingId === p.id ? '取消編輯' : '編輯名稱/價格/描述'}</button>
+            <b>{p.name}</b><span className="text-xs text-neutral-500">{p.slug}｜NT$ {p.base_price}｜{cats.find((c) => c.id === p.category_id)?.name ?? '未分類'}</span>
+            <button onClick={async () => { await syncBasePrice(p.id); setMsg('已按 SKU 最低價同步售價。'); load(); }} className="rounded border px-2 py-0.5 text-xs" title="把商品售價重算為啟用中 SKU 最低價">同步售價</button>
+            <button onClick={() => (editingId === p.id ? setEditingId(null) : startEdit(p))} className="rounded border px-2 py-0.5 text-xs">{editingId === p.id ? '取消編輯' : '編輯名稱/分類/描述'}</button>
             <button onClick={() => toggle(p, 'is_active')} className="rounded border px-2 py-0.5 text-xs">{p.is_active ? '下架' : '上架'}</button>
             <button onClick={() => toggle(p, 'is_featured')} className="rounded border px-2 py-0.5 text-xs">{p.is_featured ? '取消精選' : '設精選'}</button>
           </div>
@@ -214,9 +239,15 @@ export default function AdminProductsPage() {
                   <input value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} className="mt-1 w-full rounded border bg-white p-1.5" />
                 </label>
                 <label className="block">
-                  <span className="text-neutral-500">售價（NT$，各 SKU 價格請在下方另調）</span>
-                  <input type="number" value={editDraft.base_price} onChange={(e) => setEditDraft({ ...editDraft, base_price: Number(e.target.value) })} className="mt-1 w-full rounded border bg-white p-1.5" />
+                  <span className="text-neutral-500">分類（決定前台篩選和相關商品）</span>
+                  <select value={editDraft.category_id} onChange={(e) => setEditDraft({ ...editDraft, category_id: e.target.value })} className="mt-1 w-full rounded border bg-white p-1.5">
+                    <option value="">未分類</option>
+                    {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </label>
+              </div>
+              <div className="rounded-lg bg-white p-2 text-xs text-neutral-500">
+                售價 NT$ {p.base_price}（自動取啟用中 SKU 最低價，改下方 SKU 價格會同步，不用手動改）
               </div>
               <label className="block">
                 <span className="text-neutral-500">簡短描述（前台價格下方）</span>
@@ -273,7 +304,7 @@ export default function AdminProductsPage() {
                   <input value={skuEditDraft.price} onChange={(e) => setSkuEditDraft({ ...skuEditDraft, price: e.target.value })} placeholder="價格" type="number" className="rounded border bg-white p-1" />
                   <input value={skuEditDraft.stock} onChange={(e) => setSkuEditDraft({ ...skuEditDraft, stock: e.target.value })} placeholder="庫存" type="number" className="rounded border bg-white p-1" />
                   <span className="flex gap-1">
-                    <button onClick={() => updateSku(s.id)} className="rounded bg-black px-2 py-1 text-xs text-white">儲存</button>
+                    <button onClick={() => updateSku(p.id, s.id)} className="rounded bg-black px-2 py-1 text-xs text-white">儲存</button>
                     <button onClick={() => setEditingSkuId(null)} className="rounded border px-2 py-1 text-xs">取消</button>
                   </span>
                 </div>
@@ -281,8 +312,8 @@ export default function AdminProductsPage() {
                 <div key={s.id} className="flex flex-wrap items-center gap-2">
                   <span>{s.sku_code}｜{s.spec_name}｜NT$ {s.price}｜庫存 {s.stock}{s.is_active === false ? '（已停用）' : ''}</span>
                   <button onClick={() => startSkuEdit(s)} className="rounded border px-2 py-0.5 text-xs">編輯</button>
-                  <button onClick={() => toggleSkuActive(s)} className="rounded border px-2 py-0.5 text-xs">{s.is_active === false ? '啟用' : '停用'}</button>
-                  <button onClick={() => deleteSku(s)} className="rounded border px-2 py-0.5 text-xs text-red-600">刪除</button>
+                  <button onClick={() => toggleSkuActive(s, p.id)} className="rounded border px-2 py-0.5 text-xs">{s.is_active === false ? '啟用' : '停用'}</button>
+                  <button onClick={() => deleteSku(s, p.id)} className="rounded border px-2 py-0.5 text-xs text-red-600">刪除</button>
                 </div>
               )
             ))}
