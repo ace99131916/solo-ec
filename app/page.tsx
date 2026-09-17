@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase';
 import { mockBanners, mockProducts } from '@/lib/mock';
 import { NAV } from '@/lib/shop';
-import { getSiteBlocks, titleClass, getHeroPayload, DEFAULT_BLOCKS } from '@/lib/site-blocks';
+import { getSiteBlocks, titleClass, getHeroPayload, getEyebrow, DEFAULT_BLOCKS } from '@/lib/site-blocks';
 import { getGuides } from '@/lib/guides';
 import HeroCarousel from '@/components/HeroCarousel';
 
@@ -139,7 +139,7 @@ export default async function Home() {
       <section className="fade-in-up stagger-2">
         <div className="mb-4 flex items-end justify-between">
           <div>
-            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">CURATED</div>
+            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">{getEyebrow(catBlock)}</div>
             <h2 className={`mt-1 ${titleClass(catBlock.titleSize)}`}>{catBlock.title}</h2>
             {catBlock.subtitle ? <p className="mt-1 text-sm text-ink-700/60">{catBlock.subtitle}</p> : null}
           </div>
@@ -169,7 +169,7 @@ export default async function Home() {
       <section>
         <div className="mb-5 flex items-end justify-between">
           <div>
-            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">TOP SELECTION</div>
+            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">{getEyebrow(featBlock)}</div>
             <h2 className={`mt-1 ${titleClass(featBlock.titleSize)}`}>{featBlock.title}</h2>
             {featBlock.subtitle ? <p className="mt-1 text-sm text-ink-700/60">{featBlock.subtitle}</p> : null}
           </div>
@@ -216,7 +216,7 @@ export default async function Home() {
         <div className="pointer-events-none absolute -left-20 top-0 h-72 w-72 rounded-full bg-gold-500/15 blur-[80px]" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className={`text-[11px] font-bold tracking-[0.28em] ${brandBlock.theme === 'light' || brandBlock.theme === 'gold' ? 'text-gold-600' : 'text-gold-300'}`}>FLAGSHIP</div>
+            <div className={`text-[11px] font-bold tracking-[0.28em] ${brandBlock.theme === 'light' || brandBlock.theme === 'gold' ? 'text-gold-600' : 'text-gold-300'}`}>{getEyebrow(brandBlock)}</div>
             <h2 className={`mt-1 ${titleClass(brandBlock.titleSize)}`}>{brandBlock.title}</h2>
             {brandBlock.subtitle ? <p className={`mt-1.5 text-sm ${brandBlock.theme === 'light' || brandBlock.theme === 'gold' ? 'text-ink-700/60' : 'text-cream-100/60'}`}>{brandBlock.subtitle}</p> : null}
           </div>
@@ -245,7 +245,7 @@ export default async function Home() {
       <section>
         <div className="mb-5 flex items-end justify-between">
           <div>
-            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">JOURNAL</div>
+            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">{getEyebrow(guideBlock)}</div>
             <h2 className={`mt-1 ${titleClass(guideBlock.titleSize)}`}>{guideBlock.title}</h2>
             {guideBlock.subtitle ? <p className="mt-1 text-sm text-ink-700/60">{guideBlock.subtitle}</p> : null}
           </div>

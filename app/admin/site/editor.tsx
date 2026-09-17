@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, getFooterPayload, type SiteBlock } from '@/lib/site-blocks';
+import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, getFooterPayload, getEyebrow, EYEBROW_EDITABLE_IDS, type SiteBlock } from '@/lib/site-blocks';
 
 const BLOCK_LABEL: Record<string, string> = {
   announcement: '頂部公告列（最上方黑條）',
@@ -95,6 +95,16 @@ export default function SiteEditor() {
     patchFooter(id, (p) => ({ ...p, columns }));
   }
 
+  function patchEyebrow(id: string, eyebrow: string) {
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.id !== id) return r;
+        const cur = typeof r.payload === 'object' && r.payload !== null ? r.payload : {};
+        return { ...r, payload: { ...cur, eyebrow } };
+      })
+    );
+  }
+
   async function save(row: SiteBlock) {
     setSaving(row.id);
     setMsg('');
@@ -165,6 +175,17 @@ export default function SiteEditor() {
 
             {r.id !== 'footer' && (
               <>
+                {EYEBROW_EDITABLE_IDS.includes(r.id) && (
+                  <label className="mt-3 block text-sm">
+                    <span className="text-neutral-500">英文小標（標題上方金色小字，留空恢復預設）</span>
+                    <input
+                      value={typeof (r.payload as any)?.eyebrow === 'string' ? (r.payload as any).eyebrow : ''}
+                      placeholder={getEyebrow(r)}
+                      onChange={(e) => patchEyebrow(r.id, e.target.value)}
+                      className="mt-1 w-full rounded-xl border px-3 py-2 tracking-[0.15em]"
+                    />
+                  </label>
+                )}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <label className="block text-sm">
                     <span className="text-neutral-500">{r.id === 'line' ? 'LINE 連結（須 http 開頭，如 https://line.me/R/ti/p/@你的ID）' : '標題文字'}</span>

@@ -45,6 +45,23 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
   };
 }
 
+// 各區標題上方的英文小標（CURATED / TOP SELECTION…），存 payload.eyebrow，後台可改
+const DEFAULT_EYEBROWS: Record<string, string> = {
+  categories: 'CURATED',
+  featured: 'TOP SELECTION',
+  brands: 'FLAGSHIP',
+  guides: 'JOURNAL',
+};
+
+export const EYEBROW_EDITABLE_IDS = ['categories', 'featured', 'brands', 'guides'];
+
+export function getEyebrow(block?: SiteBlock): string {
+  if (!block || !(block.id in DEFAULT_EYEBROWS)) return '';
+  const raw = (block.payload as any)?.eyebrow;
+  if (typeof raw === 'string' && raw) return raw;
+  return DEFAULT_EYEBROWS[block.id];
+}
+
 export type FooterLink = { label: string; href: string };
 export type FooterColumn = { heading: string; links: FooterLink[] };
 
