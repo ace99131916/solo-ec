@@ -92,22 +92,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 本日已出貨・匿名包裝處理中
               </div>
             </div>
-            <div>
-              <div className="text-xs font-bold tracking-[0.2em] text-gold-300">購物說明</div>
-              <ul className="mt-3 space-y-2.5 text-cream-100/70">
-                <li><a className="hover:text-white" href="/guide">付款與物流</a></li>
-                <li><a className="hover:text-white" href="/guide">退換貨政策（貼身用品拆封恕不退換）</a></li>
-                <li><a className="hover:text-white" href="/products">全部商品</a></li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-xs font-bold tracking-[0.2em] text-gold-300">會員服務</div>
-              <ul className="mt-3 space-y-2.5 text-cream-100/70">
-                <li><a className="hover:text-white" href="/account">訂單查詢</a></li>
-                <li><a className="hover:text-white" href="/account">點數查詢（每筆回饋 5%）</a></li>
-                <li><a className="hover:text-white" href="/login">登入 / 註冊</a></li>
-              </ul>
-            </div>
+            {footerPayload.columns.map((col) => (
+              <div key={col.heading}>
+                <div className="text-xs font-bold tracking-[0.2em] text-gold-300">{col.heading}</div>
+                <ul className="mt-3 space-y-2.5 text-cream-100/70">
+                  {col.links.map((l) => (
+                    <li key={`${l.href}-${l.label}`}><a className="hover:text-white" href={l.href || '#'}>{l.label}</a></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
             <div>
               <div className="text-xs font-bold tracking-[0.2em] text-gold-300">聯絡我們</div>
               <p className="mt-3 leading-7 text-cream-100/70">{footerPayload.email}<br />{footerPayload.hours}</p>

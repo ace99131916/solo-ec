@@ -80,14 +80,19 @@ export default function SiteEditor() {
     );
   }
 
-  function patchFooter(id: string, fn: (p: { about: string[]; email: string; hours: string; copyright: string }) => { about: string[]; email: string; hours: string; copyright: string }) {
+  function patchFooter(id: string, fn: (p: { about: string[]; email: string; hours: string; copyright: string; columns: { heading: string; links: { label: string; href: string }[] }[] }) => { about: string[]; email: string; hours: string; copyright: string; columns: { heading: string; links: { label: string; href: string }[] }[] }) {
     setRows((rs) =>
       rs.map((r) => {
         if (r.id !== id) return r;
         const cur = getFooterPayload(r);
-        return { ...r, payload: fn({ about: [...cur.about], email: cur.email, hours: cur.hours, copyright: cur.copyright }) };
+        const base = { about: [...cur.about], email: cur.email, hours: cur.hours, copyright: cur.copyright, columns: cur.columns.map((c) => ({ heading: c.heading, links: c.links.map((l) => ({ ...l })) })) };
+        return { ...r, payload: fn(base) };
       })
     );
+  }
+
+  function patchFooterColumns(id: string, columns: { heading: string; links: { label: string; href: string }[] }[]) {
+    patchFooter(id, (p) => ({ ...p, columns }));
   }
 
   async function save(row: SiteBlock) {
@@ -283,6 +288,79 @@ export default function SiteEditor() {
                           className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
                         />
                       </label>
+                      <div className="mt-3 border-t pt-3">
+                        <div className="font-bold">連結欄（購物說明 / 會員服務）</div>
+                        {fp.columns.map((col, ci) => (
+                          <div key={ci} className="mt-2 rounded-xl border bg-white p-3">
+                            <input
+                              value={col.heading}
+                              onChange={(e) =>
+                                patchFooterColumns(
+                                  r.id,
+                                  fp.columns.map((c, j) => (j === ci ? { ...c, heading: e.target.value } : c))
+                                )
+                              }
+                              placeholder="欄目標題"
+                              className="w-full rounded-lg border px-2 py-1.5 font-bold"
+                            />
+                            {col.links.map((l, li) => (
+                              <div key={li} className="mt-1.5 flex gap-1.5">
+                                <input
+                                  value={l.label}
+                                  onChange={(e) =>
+                                    patchFooterColumns(
+                                      r.id,
+                                      fp.columns.map((c, j) =>
+                                        j === ci ? { ...c, links: c.links.map((x, k) => (k === li ? { ...x, label: e.target.value } : x)) } : c
+                                      )
+                                    )
+                                  }
+                                  placeholder="文字"
+                                  className="flex-1 rounded-lg border px-2 py-1.5"
+                                />
+                                <input
+                                  value={l.href}
+                                  onChange={(e) =>
+                                    patchFooterColumns(
+                                      r.id,
+                                      fp.columns.map((c, j) =>
+                                        j === ci ? { ...c, links: c.links.map((x, k) => (k === li ? { ...x, href: e.target.value } : x)) } : c
+                                      )
+                                    )
+                                  }
+                                  placeholder="/guide"
+                                  className="flex-1 rounded-lg border px-2 py-1.5"
+                                />
+                                <button
+                                  onClick={() =>
+                                    patchFooterColumns(
+                                      r.id,
+                                      fp.columns.map((c, j) => (j === ci ? { ...c, links: c.links.filter((_, k) => k !== li) } : c))
+                                    )
+                                  }
+                                  className="shrink-0 rounded-lg border px-2 text-red-600"
+                                  title="刪除此連結"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {col.links.length < 6 && (
+                              <button
+                                onClick={() =>
+                                  patchFooterColumns(
+                                    r.id,
+                                    fp.columns.map((c, j) => (j === ci ? { ...c, links: [...c.links, { label: '', href: '/' }] } : c))
+                                  )
+                                }
+                                className="mt-1.5 rounded-full border px-3 py-1 text-xs"
+                              >
+                                ＋ 新增連結
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                       <p className="mt-2 text-xs text-neutral-400">
                         若出現 payload 欄位不存在，請先到 Supabase 執行 supabase/footer.sql。
                       </p>

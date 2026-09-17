@@ -45,11 +45,15 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
   };
 }
 
+export type FooterLink = { label: string; href: string };
+export type FooterColumn = { heading: string; links: FooterLink[] };
+
 export type FooterPayload = {
   about?: string[];
   email?: string;
   hours?: string;
   copyright?: string;
+  columns?: FooterColumn[];
 };
 
 export const DEFAULT_FOOTER_PAYLOAD: Required<FooterPayload> = {
@@ -61,16 +65,42 @@ export const DEFAULT_FOOTER_PAYLOAD: Required<FooterPayload> = {
   email: 'service@example.com',
   hours: '客服時間 平日 10:00–18:00',
   copyright: 'Demo 佔位圖文，上線前請更換・未滿 18 歲請勿瀏覽',
+  columns: [
+    {
+      heading: '購物說明',
+      links: [
+        { label: '付款與物流', href: '/guide' },
+        { label: '退換貨政策（貼身用品拆封恕不退換）', href: '/guide' },
+        { label: '全部商品', href: '/products' },
+      ],
+    },
+    {
+      heading: '會員服務',
+      links: [
+        { label: '訂單查詢', href: '/account' },
+        { label: '點數查詢（每筆回饋 5%）', href: '/account' },
+        { label: '登入 / 註冊', href: '/login' },
+      ],
+    },
+  ],
 };
 
 export function getFooterPayload(block?: SiteBlock): Required<FooterPayload> {
   const p = (block?.payload ?? {}) as FooterPayload;
   const about = Array.isArray(p.about) && p.about.length ? p.about.slice(0, 3) : DEFAULT_FOOTER_PAYLOAD.about;
+  const columns = Array.isArray(p.columns) && p.columns.length ? p.columns.slice(0, 2) : DEFAULT_FOOTER_PAYLOAD.columns;
   return {
     about: [0, 1, 2].map((i) => (typeof about[i] === 'string' && about[i] ? about[i] : DEFAULT_FOOTER_PAYLOAD.about[i])),
     email: typeof p.email === 'string' && p.email ? p.email : DEFAULT_FOOTER_PAYLOAD.email,
     hours: typeof p.hours === 'string' && p.hours ? p.hours : DEFAULT_FOOTER_PAYLOAD.hours,
     copyright: typeof p.copyright === 'string' && p.copyright ? p.copyright : DEFAULT_FOOTER_PAYLOAD.copyright,
+    columns: columns.map((c, ci) => ({
+      heading: typeof c.heading === 'string' && c.heading ? c.heading : DEFAULT_FOOTER_PAYLOAD.columns[ci]?.heading ?? '',
+      links: (Array.isArray(c.links) ? c.links : []).slice(0, 6).map((l) => ({
+        label: String(l.label ?? ''),
+        href: String(l.href ?? ''),
+      })).filter((l) => l.label),
+    })),
   };
 }
 
