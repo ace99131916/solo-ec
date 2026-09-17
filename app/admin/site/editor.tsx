@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-client';
 import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, type SiteBlock } from '@/lib/site-blocks';
 
 const BLOCK_LABEL: Record<string, string> = {
+  announcement: '頂部公告列（最上方黑條）',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',

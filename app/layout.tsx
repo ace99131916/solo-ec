@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Noto_Serif_TC, Noto_Sans_TC } from 'next/font/google';
 import './globals.css';
 import { NAV, SITE } from '@/lib/shop';
+import { getSiteBlocks, DEFAULT_BLOCKS } from '@/lib/site-blocks';
+import { createServerClient } from '@/lib/supabase';
 import AgeGate from '@/components/AgeGate';
 import CartBadge from '@/components/CartBadge';
 
@@ -21,14 +23,22 @@ function SearchIcon() {
   );
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  let announcement = DEFAULT_BLOCKS.find((b) => b.id === 'announcement')!;
+  try {
+    const blocks = await getSiteBlocks(createServerClient());
+    const found = blocks.find((b) => b.id === 'announcement');
+    if (found) announcement = found;
+  } catch {}
   return (
     <html lang="zh-Hant">
       <body className={`${serif.variable} ${sans.variable} min-h-screen bg-cream-50 font-sans text-ink-900 antialiased`}>
         <AgeGate />
-        <div className="bg-ink-950 py-2 text-center text-[11px] tracking-[0.2em] text-gold-200">
-          {SITE.slogan} ｜ 首購碼 WELCOME100（滿500折100）
-        </div>
+        {announcement.visible && (
+          <div className="bg-ink-950 py-2 text-center text-[11px] tracking-[0.2em] text-gold-200">
+            {announcement.title}{announcement.subtitle ? `｜${announcement.subtitle}` : ''}
+          </div>
+        )}
         <header className="sticky top-0 z-40 border-b border-ink-900/10 bg-cream-50/85 backdrop-blur-md">
           <nav className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5">
             <a href="/" className="shrink-0 font-serif text-lg font-black tracking-tight">

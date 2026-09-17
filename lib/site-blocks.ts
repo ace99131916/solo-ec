@@ -44,9 +44,18 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
   };
 }
 
-export const BLOCK_IDS = ['hero', 'categories', 'featured', 'brands', 'guides', 'trust'] as const;
+export const BLOCK_IDS = ['announcement', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
+  {
+    id: 'announcement',
+    title: '隱密包裝・24H出貨・全館滿千免運',
+    subtitle: '首購碼 WELCOME100（滿500折100）',
+    visible: true,
+    sort: 5,
+    titleSize: 'sm',
+    theme: 'dark',
+  },
   {
     id: 'hero',
     title: '探索你的心動頻率',
