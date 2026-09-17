@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, type SiteBlock } from '@/lib/site-blocks';
+import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, getFooterPayload, type SiteBlock } from '@/lib/site-blocks';
 
 const BLOCK_LABEL: Record<string, string> = {
   announcement: '頂部公告列（最上方黑條）',
   line: 'LINE 浮動客服（右下角固定鈕）',
+  footer: '頁尾設定',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',
@@ -79,6 +80,16 @@ export default function SiteEditor() {
     );
   }
 
+  function patchFooter(id: string, fn: (p: { about: string[]; email: string; hours: string; copyright: string }) => { about: string[]; email: string; hours: string; copyright: string }) {
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.id !== id) return r;
+        const cur = getFooterPayload(r);
+        return { ...r, payload: fn({ about: [...cur.about], email: cur.email, hours: cur.hours, copyright: cur.copyright }) };
+      })
+    );
+  }
+
   async function save(row: SiteBlock) {
     setSaving(row.id);
     setMsg('');
@@ -94,9 +105,7 @@ export default function SiteEditor() {
             sort: Number(row.sort) || 0,
             title_size: row.titleSize,
             theme: row.theme,
-            ...(row.id === 'hero' && row.payload
-              ? { payload: row.payload }
-              : {}),
+            ...(row.payload ? { payload: row.payload } : {}),
           },
           { onConflict: 'id' }
         );
@@ -149,65 +158,71 @@ export default function SiteEditor() {
               </label>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="block text-sm">
-                <span className="text-neutral-500">{r.id === 'line' ? 'LINE 連結（須 http 開頭，如 https://line.me/R/ti/p/@你的ID）' : '標題文字'}</span>
-                <input
-                  value={r.title}
-                  onChange={(e) => patch(r.id, { title: e.target.value })}
-                  className="mt-1 w-full rounded-xl border px-3 py-2"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-neutral-500">副標 / 描述</span>
-                <input
-                  value={r.subtitle}
-                  onChange={(e) => patch(r.id, { subtitle: e.target.value })}
-                  placeholder="留空則不顯示"
-                  className="mt-1 w-full rounded-xl border px-3 py-2"
-                />
-              </label>
-            </div>
+            {r.id !== 'footer' && (
+              <>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <label className="block text-sm">
+                    <span className="text-neutral-500">{r.id === 'line' ? 'LINE 連結（須 http 開頭，如 https://line.me/R/ti/p/@你的ID）' : '標題文字'}</span>
+                    <input
+                      value={r.title}
+                      onChange={(e) => patch(r.id, { title: e.target.value })}
+                      className="mt-1 w-full rounded-xl border px-3 py-2"
+                    />
+                  </label>
+                  {r.id !== 'line' && (
+                    <label className="block text-sm">
+                      <span className="text-neutral-500">副標 / 描述</span>
+                      <input
+                        value={r.subtitle}
+                        onChange={(e) => patch(r.id, { subtitle: e.target.value })}
+                        placeholder="留空則不顯示"
+                        className="mt-1 w-full rounded-xl border px-3 py-2"
+                      />
+                    </label>
+                  )}
+                </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-              <label className="block">
-                <span className="text-neutral-500">標題大小</span>
-                <select
-                  value={r.titleSize}
-                  onChange={(e) => patch(r.id, { titleSize: e.target.value as SiteBlock['titleSize'] })}
-                  className="mt-1 w-full rounded-xl border bg-white px-2 py-2"
-                >
-                  {SIZE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-neutral-500">配色主題</span>
-                <select
-                  value={r.theme}
-                  onChange={(e) => patch(r.id, { theme: e.target.value as SiteBlock['theme'] })}
-                  className="mt-1 w-full rounded-xl border bg-white px-2 py-2"
-                >
-                  {THEME_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-neutral-500">排序（小在上）</span>
-                <input
-                  type="number"
-                  value={r.sort}
-                  onChange={(e) => patch(r.id, { sort: Number(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border px-3 py-2"
-                />
-              </label>
-            </div>
+                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                  <label className="block">
+                    <span className="text-neutral-500">標題大小</span>
+                    <select
+                      value={r.titleSize}
+                      onChange={(e) => patch(r.id, { titleSize: e.target.value as SiteBlock['titleSize'] })}
+                      className="mt-1 w-full rounded-xl border bg-white px-2 py-2"
+                    >
+                      {SIZE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-neutral-500">配色主題</span>
+                    <select
+                      value={r.theme}
+                      onChange={(e) => patch(r.id, { theme: e.target.value as SiteBlock['theme'] })}
+                      className="mt-1 w-full rounded-xl border bg-white px-2 py-2"
+                    >
+                      {THEME_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-neutral-500">排序（小在上）</span>
+                    <input
+                      type="number"
+                      value={r.sort}
+                      onChange={(e) => patch(r.id, { sort: Number(e.target.value) })}
+                      className="mt-1 w-full rounded-xl border px-3 py-2"
+                    />
+                  </label>
+                </div>
+              </>
+            )}
 
             <div className="mt-3 flex items-center gap-2">
               <button
@@ -219,6 +234,63 @@ export default function SiteEditor() {
               </button>
               <span className="text-xs text-neutral-400">只存這一區，不影響其他區</span>
             </div>
+
+            {r.id === 'footer' && (
+              <div className="mt-3 rounded-xl bg-cream-50 p-4 text-sm">
+                <div className="font-bold">頁尾內容（品牌簡介三行＋聯絡＋版權列）</div>
+                {(() => {
+                  const fp = getFooterPayload(r);
+                  return (
+                    <>
+                      {fp.about.map((line, i) => (
+                        <label key={i} className="mt-2 block">
+                          <span className="text-neutral-500">簡介第 {i + 1} 行</span>
+                          <input
+                            value={line}
+                            onChange={(e) =>
+                              patchFooter(r.id, (p) => ({
+                                ...p,
+                                about: p.about.map((a, j) => (j === i ? e.target.value : a)),
+                              }))
+                            }
+                            className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                          />
+                        </label>
+                      ))}
+                      <div className="mt-2 grid gap-2 md:grid-cols-2">
+                        <label className="block">
+                          <span className="text-neutral-500">聯絡信箱</span>
+                          <input
+                            value={fp.email}
+                            onChange={(e) => patchFooter(r.id, (p) => ({ ...p, email: e.target.value }))}
+                            className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-neutral-500">客服時間</span>
+                          <input
+                            value={fp.hours}
+                            onChange={(e) => patchFooter(r.id, (p) => ({ ...p, hours: e.target.value }))}
+                            className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                          />
+                        </label>
+                      </div>
+                      <label className="mt-2 block">
+                        <span className="text-neutral-500">版權列（© 年份 店名・後面這段）</span>
+                        <input
+                          value={fp.copyright}
+                          onChange={(e) => patchFooter(r.id, (p) => ({ ...p, copyright: e.target.value }))}
+                          className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                        />
+                      </label>
+                      <p className="mt-2 text-xs text-neutral-400">
+                        若出現 payload 欄位不存在，請先到 Supabase 執行 supabase/footer.sql。
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             {r.id === 'hero' && (
               <div className="mt-4 rounded-xl bg-cream-50 p-4 text-sm">

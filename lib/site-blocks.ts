@@ -13,7 +13,8 @@ export type SiteBlock = {
   sort: number;
   titleSize: TitleSize;
   theme: BlockTheme;
-  payload?: HeroPayload;
+  // 各區自訂欄位：hero 用 HeroPayload、footer 用 FooterPayload
+  payload?: any;
 };
 
 export type HeroPromo = { threshold: string; gift: string };
@@ -44,7 +45,36 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
   };
 }
 
-export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust'] as const;
+export type FooterPayload = {
+  about?: string[];
+  email?: string;
+  hours?: string;
+  copyright?: string;
+};
+
+export const DEFAULT_FOOTER_PAYLOAD: Required<FooterPayload> = {
+  about: [
+    '隱密包裝・品名標示為「生活用品」',
+    '24H 出貨・滿千免運・原廠正貨',
+    '每筆訂單 5% 點數回饋',
+  ],
+  email: 'service@example.com',
+  hours: '客服時間 平日 10:00–18:00',
+  copyright: 'Demo 佔位圖文，上線前請更換・未滿 18 歲請勿瀏覽',
+};
+
+export function getFooterPayload(block?: SiteBlock): Required<FooterPayload> {
+  const p = (block?.payload ?? {}) as FooterPayload;
+  const about = Array.isArray(p.about) && p.about.length ? p.about.slice(0, 3) : DEFAULT_FOOTER_PAYLOAD.about;
+  return {
+    about: [0, 1, 2].map((i) => (typeof about[i] === 'string' && about[i] ? about[i] : DEFAULT_FOOTER_PAYLOAD.about[i])),
+    email: typeof p.email === 'string' && p.email ? p.email : DEFAULT_FOOTER_PAYLOAD.email,
+    hours: typeof p.hours === 'string' && p.hours ? p.hours : DEFAULT_FOOTER_PAYLOAD.hours,
+    copyright: typeof p.copyright === 'string' && p.copyright ? p.copyright : DEFAULT_FOOTER_PAYLOAD.copyright,
+  };
+}
+
+export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust', 'footer'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
   {
@@ -118,6 +148,15 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     sort: 60,
     titleSize: 'sm',
     theme: 'light',
+  },
+  {
+    id: 'footer',
+    title: '',
+    subtitle: '',
+    visible: true,
+    sort: 70,
+    titleSize: 'sm',
+    theme: 'dark',
   },
 ];
 

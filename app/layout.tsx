@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Noto_Serif_TC, Noto_Sans_TC } from 'next/font/google';
 import './globals.css';
 import { NAV, SITE } from '@/lib/shop';
-import { getSiteBlocks, DEFAULT_BLOCKS } from '@/lib/site-blocks';
+import { getSiteBlocks, DEFAULT_BLOCKS, getFooterPayload } from '@/lib/site-blocks';
 import { createServerClient } from '@/lib/supabase';
 import AgeGate from '@/components/AgeGate';
 import CartBadge from '@/components/CartBadge';
@@ -28,6 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let announcement = DEFAULT_BLOCKS.find((b) => b.id === 'announcement')!;
   let lineUrl = '';
   let lineVisible = false;
+  let footerPayload = getFooterPayload(undefined);
   try {
     const blocks = await getSiteBlocks(createServerClient());
     const found = blocks.find((b) => b.id === 'announcement');
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lineUrl = line.title.trim();
       lineVisible = true;
     }
+    const footerPayload = getFooterPayload(blocks.find((b) => b.id === 'footer'));
   } catch {}
   return (
     <html lang="zh-Hant">
@@ -66,7 +68,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <span className="hidden h-4 w-px shrink-0 bg-ink-900/15 sm:block" />
             <a href="/account" className="hidden shrink-0 whitespace-nowrap text-[13px] font-medium hover:text-gold-600 sm:block">會員中心</a>
             <a href="/login" className="shrink-0 whitespace-nowrap rounded-full bg-ink-950 px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-ink-800">登入</a>
-            <a href="/admin" className="hidden shrink-0 whitespace-nowrap text-[13px] text-ink-700/50 hover:text-ink-900 xl:block">後台</a>
           </nav>
           <div className="border-t border-ink-900/5 bg-cream-50 lg:hidden">
             <div className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-4 py-2.5 text-[13px]">
@@ -82,9 +83,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div>
               <div className="font-serif text-lg font-bold text-white">{SITE.name}</div>
               <p className="mt-3 max-w-xs leading-7 text-cream-100/60">
-                隱密包裝・品名標示為「生活用品」
-                <br />24H 出貨・滿千免運・原廠正貨
-                <br />每筆訂單 5% 點數回饋
+                {footerPayload.about[0]}
+                <br />{footerPayload.about[1]}
+                <br />{footerPayload.about[2]}
               </p>
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs text-gold-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -109,10 +110,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
             <div>
               <div className="text-xs font-bold tracking-[0.2em] text-gold-300">聯絡我們</div>
-              <p className="mt-3 leading-7 text-cream-100/70">{SITE.serviceEmail}<br />客服時間 平日 10:00–18:00</p>
+              <p className="mt-3 leading-7 text-cream-100/70">{footerPayload.email}<br />{footerPayload.hours}</p>
             </div>
           </div>
-          <div className="border-t border-white/10 py-4 text-center text-xs tracking-wide text-cream-100/40">© {new Date().getFullYear()} {SITE.name}・Demo 佔位圖文，上線前請更換・未滿 18 歲請勿瀏覽</div>
+          <div className="border-t border-white/10 py-3.5 text-center text-xs tracking-wide text-cream-100/40">
+            <span>© {new Date().getFullYear()} {SITE.name}・{footerPayload.copyright}</span>
+            <span className="mx-2 text-cream-100/20">|</span>
+            <a href="/admin" className="text-cream-100/30 transition hover:text-gold-300">管理員登入</a>
+          </div>
         </footer>
         {lineVisible && <LineFloat url={lineUrl} />}
       </body>
