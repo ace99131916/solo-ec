@@ -1,385 +1,179 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
-
+// 商品管理列表：新增一次填完（圖片/規格/庫存/介紹），列表圖片/條列切換，點圖或點名進編輯頁
 export default function AdminProductsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '' });
-  const [skuForm, setSkuForm] = useState<Record<string, { spec: string; price: string; stock: string }>>({});
   const [msg, setMsg] = useState('');
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState({ name: '', description: '', category_id: '' });
-  const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
-  const [skuEditDraft, setSkuEditDraft] = useState({ spec: '', price: '', stock: '' });
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '', spec: '標準', stock: '50', detail: '' });
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState('');
 
   async function load() {
     const sb = createClient();
-    const { data } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,description,category_id,cover_image,images,detail_text,detail_images,product_skus(id,sku_code,spec_name,price,stock,is_active)').order('created_at', { ascending: false }).limit(200);
+    const { data } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,category_id,cover_image,product_skus(qty,is_active)').order('created_at', { ascending: false }).limit(500);
     if (data) setRows(data);
     const { data: catData } = await sb.from('categories').select('id,name,slug').order('sort').limit(100);
     if (catData) setCats(catData);
   }
   useEffect(() => { load(); }, []);
 
-  // 售價單一真相：取啟用中 SKU 最低價回寫商品主售價（前台列表和詳情一致）
-  async function syncBasePrice(productId: string) {
-    const sb = createClient();
-    const { data } = await sb.from('product_skus').select('price').eq('product_id', productId).eq('is_active', true);
-    if (data?.length) {
-      const min = Math.min(...data.map((s: any) => s.price));
-      await sb.from('products').update({ base_price: min }).eq('id', productId);
-    }
+  const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? '未分類';
+  const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.qty ?? 0), 0);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((p) => {
+      if (catFilter && (p.category_id ?? '') !== catFilter) return false;
+      if (q && !`${p.name} ${p.slug}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [rows, search, catFilter]);
+
+  function pickCover(f: File | undefined) {
+    if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
   }
 
   async function create() {
-    setMsg('');
-    const sb = createClient();
-    if (!form.name || !form.slug) { setMsg('請填商品名與 slug'); return; }
-    const { data, error } = await sb.from('products').insert({
-      name: form.name, slug: form.slug, base_price: Number(form.base_price),
-      description: form.description, is_featured: form.is_featured, is_active: true,
-      category_id: form.category_id || null,
-    }).select('id').single();
-    if (error) { setMsg(`新增失敗：${error.message}`); return; }
-    await sb.from('product_skus').insert({ product_id: data.id, sku_code: `${form.slug.toUpperCase()}-STD`, spec_name: '標準', price: Number(form.base_price), stock: 50 });
-    setMsg('已新增（含一組標準 SKU），可再上傳圖片／選分類已直接完成');
-    setForm({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '' });
-    load();
-  }
-
-  async function toggle(p: any, field: 'is_active' | 'is_featured') {
-    const sb = createClient();
-    await sb.from('products').update({ [field]: !p[field] }).eq('id', p.id);
-    load();
-  }
-
-  function startEdit(p: any) {
-    setEditingId(p.id);
-    setEditDraft({ name: p.name ?? '', description: p.description ?? '', category_id: p.category_id ?? '' });
-  }
-
-  async function saveInfo(productId: string) {
-    if (!editDraft.name.trim()) { setMsg('商品名不可空白'); return; }
-    setMsg('儲存中…');
-    const { error } = await createClient().from('products').update({
-      name: editDraft.name.trim(),
-      description: editDraft.description,
-      category_id: editDraft.category_id || null,
-    }).eq('id', productId);
-    setMsg(error ? `儲存失敗：${error.message}` : '商品基本資料已更新，前台即時顯示。');
-    if (!error) {
-      setEditingId(null);
-      load();
-    }
-  }
-
-  async function saveSku(productId: string, skuId?: string) {
-    const f = skuForm[productId] ?? { spec: '', price: '', stock: '' };
-    const sb = createClient();
-    if (!f.spec || !f.price) { setMsg('SKU 需填規格與價格'); return; }
-    if (skuId) {
-      await sb.from('product_skus').update({ spec_name: f.spec, price: Number(f.price), stock: Number(f.stock || 0) }).eq('id', skuId);
-    } else {
-      await sb.from('product_skus').insert({ product_id: productId, sku_code: `SKU-${Date.now().toString(36).toUpperCase()}`, spec_name: f.spec, price: Number(f.price), stock: Number(f.stock || 0) });
-    }
-    setMsg('SKU 已儲存（超賣防護靠下單 RPC 鎖庫存，勿手動把庫存設負數）');
-    await syncBasePrice(productId);
-    load();
-  }
-
-  function startSkuEdit(s: any) {
-    setEditingSkuId(s.id);
-    setSkuEditDraft({ spec: s.spec_name ?? '', price: String(s.price ?? ''), stock: String(s.stock ?? '') });
-  }
-
-  async function updateSku(productId: string, skuId: string) {
-    if (!skuEditDraft.spec.trim() || !skuEditDraft.price) { setMsg('規格與價格不可空白'); return; }
-    setMsg('儲存中…');
-    const { error } = await createClient().from('product_skus').update({
-      spec_name: skuEditDraft.spec.trim(),
-      price: Number(skuEditDraft.price),
-      stock: Number(skuEditDraft.stock || 0),
-    }).eq('id', skuId);
-    setMsg(error ? `儲存失敗：${error.message}` : '規格已更新，商品售價已同步為 SKU 最低價。');
-    if (!error) {
-      setEditingSkuId(null);
-      await syncBasePrice(productId);
-      load();
-    }
-  }
-
-  async function toggleSkuActive(s: any, productId: string) {
-    await createClient().from('product_skus').update({ is_active: !s.is_active }).eq('id', s.id);
-    await syncBasePrice(productId);
-    load();
-  }
-
-  async function deleteSku(s: any, productId: string) {
-    if (!confirm(`確定刪除規格「${s.spec_name}」？購物車內該規格會一併移除（歷史訂單不受影響）。`)) return;
-    const { error } = await createClient().from('product_skus').delete().eq('id', s.id);
-    setMsg(error ? `刪除失敗：${error.message}` : '規格已刪除，商品售價已同步。');
-    if (!error) {
-      await syncBasePrice(productId);
-      load();
-    }
-  }
-
-  // 上傳圖片/影片到 product-images bucket，回寫 cover_image；asGallery=true 則附加到 images 多圖（含影片）
-  async function uploadMedia(productId: string, file: File, asGallery: boolean) {
-    setUploading(productId + (asGallery ? '-g' : '-c'));
-    setMsg('');
+    if (!form.name.trim() || !form.slug.trim()) { setMsg('請填商品名與 slug'); return; }
+    setCreating(true);
+    setMsg('新增中…');
     try {
       const sb = createClient();
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${productId}/${Date.now()}-${safe}`;
-      const { error: upErr } = await sb.storage.from('product-images').upload(path, file, { upsert: false });
-      if (upErr) { setMsg(`上傳失敗：${upErr.message}（確認 Storage 有 product-images bucket 且你有 admin 權限）`); return; }
-      const { data } = sb.storage.from('product-images').getPublicUrl(path);
-      const url = data.publicUrl;
-      if (asGallery) {
-        const cur = rows.find((r) => r.id === productId);
-        const next = [...(cur?.images ?? []), url];
-        const { error } = await sb.from('products').update({ images: next }).eq('id', productId);
-        setMsg(error ? `回寫失敗：${error.message}` : '已加入多圖（含影片），前台畫廊即時顯示。');
-      } else {
-        const { error } = await sb.from('products').update({ cover_image: url }).eq('id', productId);
-        setMsg(error ? `回寫失敗：${error.message}` : '首圖已更新，前台即時顯示。');
+      const { data, error } = await sb.from('products').insert({
+        name: form.name.trim(), slug: form.slug.trim(), base_price: Number(form.base_price) || 0,
+        description: form.description, detail_text: form.detail,
+        is_featured: form.is_featured, is_active: true,
+        category_id: form.category_id || null,
+      }).select('id').single();
+      if (error) { setMsg(`新增失敗：${error.message}`); return; }
+      if (coverFile) {
+        const safe = coverFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${data.id}/${Date.now()}-${safe}`;
+        const { error: upErr } = await sb.storage.from('product-images').upload(path, coverFile, { upsert: false });
+        if (upErr) { setMsg(`商品已建但首圖上傳失敗：${upErr.message}（可到編輯頁補傳）`); }
+        else {
+          const { data: pub } = sb.storage.from('product-images').getPublicUrl(path);
+          await sb.from('products').update({ cover_image: pub.publicUrl }).eq('id', data.id);
+        }
       }
+      await sb.from('product_skus').insert({
+        product_id: data.id,
+        sku_code: `${form.slug.trim().toUpperCase()}-STD`,
+        spec_name: form.spec.trim() || '標準',
+        price: Number(form.base_price) || 0,
+        stock: Number(form.stock || 0),
+      });
+      setMsg(`已新增「${form.name.trim()}」，可點進編輯頁補多圖。`);
+      setForm({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '', spec: '標準', stock: '50', detail: '' });
+      setCoverFile(null);
+      setCoverPreview('');
       load();
     } catch (e: any) {
-      setMsg(`上傳失敗：${e.message}`);
+      setMsg(`新增失敗：${e.message}`);
     } finally {
-      setUploading(null);
+      setCreating(false);
     }
-  }
-
-  async function removeGalleryImage(productId: string, url: string) {
-    if (!confirm('從多圖移除這個媒體？（Storage 檔案本身保留）')) return;
-    const sb = createClient();
-    const cur = rows.find((r) => r.id === productId);
-    await sb.from('products').update({ images: (cur?.images ?? []).filter((u: string) => u !== url) }).eq('id', productId);
-    load();
-  }
-
-  // 商品介紹：存文字
-  async function saveDetailText(productId: string, text: string) {
-    setMsg('儲存中…');
-    const { error } = await createClient().from('products').update({ detail_text: text }).eq('id', productId);
-    setMsg(error ? `儲存失敗：${error.message}` : '商品介紹文字已儲存，前台即時顯示。');
-    if (!error) load();
-  }
-
-  // 商品介紹：上傳介紹圖/影片到 detail_images
-  async function uploadDetailMedia(productId: string, file: File) {
-    setUploading(productId + '-d');
-    setMsg('');
-    try {
-      const sb = createClient();
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${productId}/detail-${Date.now()}-${safe}`;
-      const { error: upErr } = await sb.storage.from('product-images').upload(path, file, { upsert: false });
-      if (upErr) { setMsg(`上傳失敗：${upErr.message}`); return; }
-      const { data } = sb.storage.from('product-images').getPublicUrl(path);
-      const cur = rows.find((r) => r.id === productId);
-      const { error } = await sb.from('products').update({ detail_images: [...(cur?.detail_images ?? []), data.publicUrl] }).eq('id', productId);
-      setMsg(error ? `回寫失敗：${error.message}` : '介紹圖已加入，前台即時顯示。');
-      load();
-    } catch (e: any) {
-      setMsg(`上傳失敗：${e.message}`);
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  async function removeDetailImage(productId: string, url: string) {
-    if (!confirm('從商品介紹移除這個媒體？（Storage 檔案本身保留）')) return;
-    const sb = createClient();
-    const cur = rows.find((r) => r.id === productId);
-    await sb.from('products').update({ detail_images: (cur?.detail_images ?? []).filter((u: string) => u !== url) }).eq('id', productId);
-    load();
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded bg-white p-4">
-        <h1 className="font-bold">新增商品</h1>
-        <div className="mt-2 grid gap-2 md:grid-cols-6">
-          <input className="rounded border p-2" placeholder="商品名" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="rounded border p-2" placeholder="slug (英文-唯一)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-          <input className="rounded border p-2" type="number" placeholder="售價" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) })} />
-          <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="rounded border bg-white p-2">
+      <div className="rounded-2xl border border-ink-900/10 bg-white p-5 shadow-soft">
+        <h1 className="font-bold">新增商品 <span className="ml-1 text-xs font-normal text-neutral-400">一次填完：圖片・規格・庫存・介紹</span></h1>
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <input className="rounded-xl border p-2 text-sm" placeholder="商品名 *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="rounded-xl border p-2 text-sm" placeholder="slug（英文-唯一）*" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+          <input className="rounded-xl border p-2 text-sm" type="number" placeholder="售價" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) })} />
+          <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} className="rounded-xl border bg-white p-2 text-sm">
             <option value="">分類（未分類）</option>
             {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <input className="rounded border p-2 md:col-span-2" placeholder="簡短描述" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
-        <div className="mt-2 flex items-center gap-2 text-sm">
-          <label><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} /> 首頁精選</label>
-          <button onClick={create} className="rounded bg-black px-4 py-2 text-white">新增</button>
-          {msg && <span>{msg}</span>}
+        <div className="mt-2 grid gap-2 md:grid-cols-4">
+          <input className="rounded-xl border p-2 text-sm" placeholder="簡短描述" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <input className="rounded-xl border p-2 text-sm" placeholder="規格（如 粉/標準）" value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} />
+          <input className="rounded-xl border p-2 text-sm" type="number" placeholder="庫存" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl border p-2 text-sm text-neutral-600 hover:bg-neutral-50">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
+              {coverPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverPreview} alt="首圖預覽" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-lg">📦</span>
+              )}
+            </span>
+            <span>{coverFile ? coverFile.name : '上傳首圖'}</span>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { pickCover(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+        </div>
+        <textarea value={form.detail} onChange={(e) => setForm({ ...form, detail: e.target.value })} rows={2} placeholder="商品介紹（前台主圖下方圖文區，可留空稍後補）" className="mt-2 w-full rounded-xl border p-2 text-sm" />
+        <div className="mt-2 flex items-center gap-3 text-sm">
+          <label className="flex items-center gap-1.5"><input type="checkbox" checked={form.is_featured} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} className="h-4 w-4 accent-black" /> 首頁精選</label>
+          <button onClick={create} disabled={creating} className="rounded-full bg-black px-5 py-2 text-white disabled:opacity-50">{creating ? '新增中…' : '新增'}</button>
+          {msg && <span className="text-neutral-500">{msg}</span>}
         </div>
       </div>
-      {rows.map((p) => (
-        <div key={p.id} className="rounded bg-white p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <b>{p.name}</b><span className="text-xs text-neutral-500">{p.slug}｜NT$ {p.base_price}｜{cats.find((c) => c.id === p.category_id)?.name ?? '未分類'}</span>
-            <button onClick={async () => { await syncBasePrice(p.id); setMsg('已按 SKU 最低價同步售價。'); load(); }} className="rounded border px-2 py-0.5 text-xs" title="把商品售價重算為啟用中 SKU 最低價">同步售價</button>
-            <button onClick={() => (editingId === p.id ? setEditingId(null) : startEdit(p))} className="rounded border px-2 py-0.5 text-xs">{editingId === p.id ? '取消編輯' : '編輯名稱/分類/描述'}</button>
-            <button onClick={() => toggle(p, 'is_active')} className="rounded border px-2 py-0.5 text-xs">{p.is_active ? '下架' : '上架'}</button>
-            <button onClick={() => toggle(p, 'is_featured')} className="rounded border px-2 py-0.5 text-xs">{p.is_featured ? '取消精選' : '設精選'}</button>
-          </div>
-          {editingId === p.id && (
-            <div className="mt-2 grid gap-2 rounded-lg bg-neutral-50 p-3 text-sm">
-              <div className="grid gap-2 md:grid-cols-2">
-                <label className="block">
-                  <span className="text-neutral-500">商品名稱</span>
-                  <input value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} className="mt-1 w-full rounded border bg-white p-1.5" />
-                </label>
-                <label className="block">
-                  <span className="text-neutral-500">分類（決定前台篩選和相關商品）</span>
-                  <select value={editDraft.category_id} onChange={(e) => setEditDraft({ ...editDraft, category_id: e.target.value })} className="mt-1 w-full rounded border bg-white p-1.5">
-                    <option value="">未分類</option>
-                    {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="rounded-lg bg-white p-2 text-xs text-neutral-500">
-                售價 NT$ {p.base_price}（自動取啟用中 SKU 最低價，改下方 SKU 價格會同步，不用手動改）
-              </div>
-              <label className="block">
-                <span className="text-neutral-500">簡短描述（前台價格下方）</span>
-                <input value={editDraft.description} onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })} className="mt-1 w-full rounded border bg-white p-1.5" />
-              </label>
-              <div className="text-xs text-neutral-400">slug（{p.slug}）是網址，建好後不建議改；要改網址請刪除重建。</div>
-              <div>
-                <button onClick={() => saveInfo(p.id)} className="rounded-full bg-black px-4 py-1 text-xs text-white">儲存基本資料</button>
-              </div>
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap items-start gap-3 rounded-lg bg-neutral-50 p-3">
-            <div className="text-sm">
-              <div className="font-medium">首圖</div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜尋商品名 / slug…" className="w-56 rounded-full border bg-white px-4 py-1.5 text-sm" />
+        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="rounded-full border bg-white px-3 py-1.5 text-sm">
+          <option value="">全部分類</option>
+          {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <span className="ml-auto flex overflow-hidden rounded-full border bg-white text-sm">
+          <button onClick={() => setView('grid')} className={`px-4 py-1.5 ${view === 'grid' ? 'bg-black text-white' : ''}`}>圖片</button>
+          <button onClick={() => setView('list')} className={`px-4 py-1.5 ${view === 'list' ? 'bg-black text-white' : ''}`}>條列</button>
+        </span>
+        <span className="text-xs text-neutral-400">{filtered.length} / {rows.length} 件</span>
+      </div>
+
+      {view === 'grid' ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {filtered.map((p) => (
+            <a key={p.id} href={`/admin/products/${p.id}`} className="group overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft transition hover:-translate-y-0.5">
               {p.cover_image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.cover_image} alt={p.name} className="mt-1 h-20 w-20 rounded-lg object-cover" />
+                <img src={p.cover_image} alt={p.name} className="h-32 w-full object-cover" loading="lazy" />
               ) : (
-                <div className="mt-1 flex h-20 w-20 items-center justify-center rounded-lg bg-neutral-200 text-2xl">📦</div>
+                <div className="flex h-32 w-full items-center justify-center bg-neutral-100 text-4xl">📦</div>
               )}
-              <label className="mt-1 block cursor-pointer rounded border bg-white px-2 py-1 text-xs text-center hover:bg-neutral-100">
-                {uploading === p.id + '-c' ? '上傳中…' : '上傳首圖'}
-                <input type="file" accept="image/*" className="hidden" disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadMedia(p.id, f, false); e.target.value = ''; }} />
-              </label>
-            </div>
-            <div className="min-w-0 flex-1 text-sm">
-              <div className="font-medium">多圖＋影片（{(p.images ?? []).length}）</div>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {(p.images ?? []).map((u: string) => (
-                  <span key={u} className="group relative inline-block">
-                    {/(\.mp4|\.webm|\.mov|\.m4v)(\?|$)/i.test(u) ? (
-                      <span className="flex h-12 w-12 items-center justify-center rounded bg-black text-[10px] text-white">▶ 影片</span>
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={u} alt="" className="h-12 w-12 rounded object-cover" loading="lazy" />
-                    )}
-                    <button onClick={() => removeGalleryImage(p.id, u)} className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white group-hover:flex" title="移除">×</button>
-                  </span>
-                ))}
-                {!(p.images ?? []).length && <span className="text-xs text-neutral-400">尚無多圖</span>}
+              <div className="p-3">
+                <div className="truncate text-sm font-medium group-hover:underline">{p.name}</div>
+                <div className="mt-0.5 text-sm font-bold">NT$ {p.base_price}</div>
+                <div className="mt-0.5 text-xs text-neutral-400">{catName(p.category_id)}・庫存 {stockOf(p)}{p.is_active === false ? '・已下架' : ''}</div>
               </div>
-              <label className="mt-1.5 inline-block cursor-pointer rounded border bg-white px-2 py-1 text-xs hover:bg-neutral-100">
-                {uploading === p.id + '-g' ? '上傳中…' : '＋ 上傳圖片/影片'}
-                <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" disabled={!!uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadMedia(p.id, f, true); e.target.value = ''; }} />
-              </label>
-              <span className="ml-2 text-xs text-neutral-400">影片請壓到 50MB 內（mp4/webm）</span>
-            </div>
-          </div>
-          <div className="mt-2 text-sm space-y-1">
-            {(p.product_skus ?? []).map((s: any) => (
-              editingSkuId === s.id ? (
-                <div key={s.id} className="grid gap-1 rounded-lg bg-neutral-50 p-2 md:grid-cols-[1fr_100px_90px_auto]">
-                  <input value={skuEditDraft.spec} onChange={(e) => setSkuEditDraft({ ...skuEditDraft, spec: e.target.value })} placeholder="規格" className="rounded border bg-white p-1" />
-                  <input value={skuEditDraft.price} onChange={(e) => setSkuEditDraft({ ...skuEditDraft, price: e.target.value })} placeholder="價格" type="number" className="rounded border bg-white p-1" />
-                  <input value={skuEditDraft.stock} onChange={(e) => setSkuEditDraft({ ...skuEditDraft, stock: e.target.value })} placeholder="庫存" type="number" className="rounded border bg-white p-1" />
-                  <span className="flex gap-1">
-                    <button onClick={() => updateSku(p.id, s.id)} className="rounded bg-black px-2 py-1 text-xs text-white">儲存</button>
-                    <button onClick={() => setEditingSkuId(null)} className="rounded border px-2 py-1 text-xs">取消</button>
-                  </span>
-                </div>
-              ) : (
-                <div key={s.id} className="flex flex-wrap items-center gap-2">
-                  <span>{s.sku_code}｜{s.spec_name}｜NT$ {s.price}｜庫存 {s.stock}{s.is_active === false ? '（已停用）' : ''}</span>
-                  <button onClick={() => startSkuEdit(s)} className="rounded border px-2 py-0.5 text-xs">編輯</button>
-                  <button onClick={() => toggleSkuActive(s, p.id)} className="rounded border px-2 py-0.5 text-xs">{s.is_active === false ? '啟用' : '停用'}</button>
-                  <button onClick={() => deleteSku(s, p.id)} className="rounded border px-2 py-0.5 text-xs text-red-600">刪除</button>
-                </div>
-              )
-            ))}
-          </div>
-          <div className="mt-2 grid gap-2 md:grid-cols-4">
-            <input className="rounded border p-1 text-sm" placeholder="新規格 (如 粉/標準)" value={skuForm[p.id]?.spec ?? ''} onChange={(e) => setSkuForm({ ...skuForm, [p.id]: { spec: e.target.value, price: skuForm[p.id]?.price ?? '', stock: skuForm[p.id]?.stock ?? '' } })} />
-            <input className="rounded border p-1 text-sm" placeholder="價格" value={skuForm[p.id]?.price ?? ''} onChange={(e) => setSkuForm({ ...skuForm, [p.id]: { spec: skuForm[p.id]?.spec ?? '', price: e.target.value, stock: skuForm[p.id]?.stock ?? '' } })} />
-            <input className="rounded border p-1 text-sm" placeholder="庫存" value={skuForm[p.id]?.stock ?? ''} onChange={(e) => setSkuForm({ ...skuForm, [p.id]: { spec: skuForm[p.id]?.spec ?? '', price: skuForm[p.id]?.price ?? '', stock: e.target.value } })} />
-            <button onClick={() => saveSku(p.id)} className="rounded border px-3 py-1 text-sm">＋ 新增 SKU</button>
-          </div>
-          <DetailEditor
-            product={p}
-            onSaveText={(t) => saveDetailText(p.id, t)}
-            onUpload={(f) => uploadDetailMedia(p.id, f)}
-            onRemove={(u) => removeDetailImage(p.id, u)}
-            busy={uploading === p.id + '-d'}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DetailEditor({ product, onSaveText, onUpload, onRemove, busy }: {
-  product: any;
-  onSaveText: (t: string) => void;
-  onUpload: (f: File) => void;
-  onRemove: (u: string) => void;
-  busy: boolean;
-}) {
-  const [text, setText] = useState<string | null>(null);
-  const cur = text ?? product.detail_text ?? '';
-  const imgs: string[] = product.detail_images ?? [];
-  return (
-    <div className="mt-3 rounded-lg bg-neutral-50 p-3 text-sm">
-      <div className="font-medium">商品介紹（前台主圖下方圖文區）</div>
-      <textarea
-        value={cur}
-        onChange={(e) => setText(e.target.value)}
-        rows={4}
-        placeholder="介紹說明：規格、材質、使用方式、注意事項…（換行會保留）"
-        className="mt-1.5 w-full rounded-lg border bg-white px-3 py-2"
-      />
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <button onClick={() => { onSaveText(cur); setText(null); }} className="rounded-full bg-black px-4 py-1 text-xs text-white">儲存介紹文字</button>
-        <label className="cursor-pointer rounded-full border bg-white px-3 py-1 text-xs hover:bg-neutral-100">
-          {busy ? '上傳中…' : '＋ 上傳介紹圖/影片'}
-          <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" className="hidden" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ''; }} />
-        </label>
-        <span className="text-xs text-neutral-400">沒填文字也沒傳圖時，前台不顯示此區</span>
-      </div>
-      {imgs.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {imgs.map((u: string) => (
-            <span key={u} className="group relative inline-block">
-              {/(\.mp4|\.webm|\.mov|\.m4v)(\?|$)/i.test(u) ? (
-                <span className="flex h-12 w-20 items-center justify-center rounded bg-black text-[10px] text-white">▶ 影片</span>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={u} alt="" className="h-12 w-20 rounded object-cover" loading="lazy" />
-              )}
-              <button onClick={() => onRemove(u)} className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white group-hover:flex" title="移除">×</button>
-            </span>
+            </a>
           ))}
         </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft">
+          {filtered.map((p) => (
+            <a key={p.id} href={`/admin/products/${p.id}`} className="flex items-center gap-3 border-b px-4 py-2.5 text-sm last:border-0 hover:bg-neutral-50">
+              {p.cover_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.cover_image} alt={p.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" loading="lazy" />
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-xl">📦</div>
+              )}
+              <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+              <span className="hidden shrink-0 text-xs text-neutral-400 md:block">{catName(p.category_id)}</span>
+              <span className="shrink-0 font-bold">NT$ {p.base_price}</span>
+              <span className="hidden w-20 shrink-0 text-right text-xs text-neutral-400 sm:block">庫存 {stockOf(p)}</span>
+              {p.is_active === false && <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs">已下架</span>}
+            </a>
+          ))}
+          {!filtered.length && <div className="p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
+        </div>
       )}
+      {view === 'grid' && !filtered.length && <div className="rounded-2xl bg-white p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
     </div>
   );
 }
