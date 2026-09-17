@@ -2,14 +2,24 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
-function Block({ title, table, fields }: { title: string; table: string; fields: { key: string; label: string }[] }) {
+function Block({ title, table, fields, hint }: { title: string; table: string; fields: { key: string; label: string }[]; hint?: string }) {
   const [rows, setRows] = useState<any[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
+  const [sortDraft, setSortDraft] = useState<Record<string, string>>({});
   async function load() {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { setMsg('尚未設定 Supabase 連線（先照 DEPLOY.md 設定環境變數）'); return; }
-      const { data } = await createClient().from(table).select('*').order('created_at', { ascending: false }).limit(100);
+      const sb = createClient();
+      // 有 sort 欄的表照排序顯示（跟前台一致），沒有的照建立時間
+      let { data, error }: { data: any[] | null; error: any } =
+        await sb.from(table).select('*').order('sort', { ascending: true }).limit(100);
+      if (error && /sort|column/i.test(error.message)) {
+        const r2 = await sb.from(table).select('*').order('created_at', { ascending: false }).limit(100);
+        data = r2.data;
+        error = r2.error;
+      }
+      if (error) { setMsg(`載入失敗：${error.message}`); return; }
       if (data) setRows(data);
     } catch (e: any) { setMsg(`載入失敗：${e.message}`); }
   }
@@ -30,6 +40,20 @@ function Block({ title, table, fields }: { title: string; table: string; fields:
     await createClient().from(table).update({ is_active: !r.is_active }).eq('id', r.id);
     load();
   }
+  async function saveSort(r: any) {
+    const v = sortDraft[r.id];
+    if (v === undefined || v === '') return;
+    const { error } = await createClient().from(table).update({ sort: Number(v) || 0 }).eq('id', r.id);
+    setMsg(error ? `失敗：${error.message}` : `「${r.name ?? r.title ?? r.code}」排序已改為 ${Number(v) || 0}，前台即時生效。`);
+    if (!error) {
+      setSortDraft((d) => {
+        const n = { ...d };
+        delete n[r.id];
+        return n;
+      });
+      load();
+    }
+  }
   async function del(id: string) {
     if (!confirm('確定刪除？')) return;
     await createClient().from(table).delete().eq('id', id);
@@ -38,6 +62,7 @@ function Block({ title, table, fields }: { title: string; table: string; fields:
   return (
     <div className="rounded bg-white p-4">
       <h2 className="font-bold">{title}</h2>
+      {hint && <p className="mt-1 text-sm leading-6 text-neutral-500">{hint}</p>}
       <div className="mt-2 grid gap-2 md:grid-cols-4">
         {fields.map((f) => (
           <input key={f.key} className="rounded border p-2 text-sm" placeholder={f.label} value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
@@ -47,9 +72,23 @@ function Block({ title, table, fields }: { title: string; table: string; fields:
       {msg && <span className="ml-2 text-sm">{msg}</span>}
       <ul className="mt-3 space-y-1 text-sm">
         {rows.map((r) => (
-          <li key={r.id} className="flex items-center justify-between border-t py-1">
-            <span>{r.name ?? r.title ?? r.code} <span className="text-neutral-400">({r.slug ?? r.code ?? ''}) {r.is_active === false ? '・已停用' : ''}</span></span>
-            <span className="flex gap-1">
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t py-1.5">
+            <span>{r.name ?? r.title ?? r.code} <span className="text-neutral-400">({r.slug ?? r.code ?? ''}){r.sort !== undefined ? `・排序 ${r.sort}` : ''} {r.is_active === false ? '・已停用' : ''}</span></span>
+            <span className="flex items-center gap-1">
+              {r.sort !== undefined && (
+                <span className="mr-1 flex items-center gap-1">
+                  <input
+                    type="number"
+                    title="排序（數字小排前面，改完按儲存）"
+                    placeholder="排序"
+                    value={sortDraft[r.id] ?? ''}
+                    onChange={(e) => setSortDraft({ ...sortDraft, [r.id]: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveSort(r); }}
+                    className="w-16 rounded border px-1.5 py-0.5 text-xs"
+                  />
+                  <button onClick={() => saveSort(r)} disabled={sortDraft[r.id] === undefined || sortDraft[r.id] === ''} className="rounded border px-2 text-xs disabled:opacity-40">儲存</button>
+                </span>
+              )}
               {r.is_active !== undefined && <button onClick={() => toggleActive(r)} className="rounded border px-2 text-xs">{r.is_active ? '停用' : '啟用'}</button>}
               <button onClick={() => del(r.id)} className="rounded border px-2 text-xs text-red-600">刪</button>
             </span>
@@ -64,7 +103,7 @@ export default function AdminMiscPage({ params }: { params?: any }) {
   return <div />;
 }
 export function CategoriesAdmin() {
-  return <Block title="分類管理" table="categories" fields={[{ key: 'name', label: '名稱' }, { key: 'slug', label: 'slug(英文唯一)' }, { key: 'sort', label: '排序數字' }]} />;
+  return <Block title="分類管理" table="categories" hint="排序數字小排前面（可填 10、20、30…方便以後插隊）。改右邊排序欄按儲存即時生效，影響首頁分類和商品頁篩選的順序。上方導覽列的順序是另一套寫死的，要調跟我說。" fields={[{ key: 'name', label: '名稱' }, { key: 'slug', label: 'slug(英文唯一)' }, { key: 'sort', label: '排序數字' }]} />;
 }
 export function CouponsAdmin() {
   return <Block title="優惠券管理" table="coupons" fields={[{ key: 'code', label: '優惠碼 (如 WELCOME100)' }, { key: 'name', label: '名稱' }, { key: 'discount_type', label: 'fixed/percent' }, { key: 'discount_value', label: '折抵金額或折扣' }, { key: 'min_amount', label: '最低金額' }]} />;
