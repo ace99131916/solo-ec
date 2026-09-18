@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase-client';
 
 // 商品管理列表：新增一次填完（圖片/規格/庫存/介紹），列表圖片/條列切換，點圖或點名進編輯頁
 // 搜尋＋分類＋分頁全部打後端查詢，商品再多也找得到
-const PAGE_SIZE = 48;
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
 
 export default function AdminProductsPage() {
   const [rows, setRows] = useState<any[]>([]);
@@ -13,6 +13,8 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [page, setPage] = useState(0);
+  const [perPage, setPerPage] = useState(48);
+  const [jump, setJump] = useState('');
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'grid' | 'list'>('grid');
@@ -27,7 +29,7 @@ export default function AdminProductsPage() {
     if (catData) setCats(catData);
   }
 
-  async function loadList(q: string, cat: string, pg: number) {
+  async function loadList(q: string, cat: string, pg: number, per: number) {
     setLoading(true);
     try {
       const sb = createClient();
@@ -35,8 +37,8 @@ export default function AdminProductsPage() {
       const keyword = q.trim().replace(/[,()%]/g, '');
       if (keyword) query = query.or(`name.ilike.%${keyword}%,slug.ilike.%${keyword}%`);
       if (cat) query = query.eq('category_id', cat);
-      const from = pg * PAGE_SIZE;
-      const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+      const from = pg * per;
+      const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + per - 1);
       if (error) { setMsg(`商品列表載入失敗：${error.message}`); return; }
       setRows(data ?? []);
       setTotal(count ?? 0);
@@ -45,16 +47,16 @@ export default function AdminProductsPage() {
     }
   }
 
-  // 首次載入分類；搜尋/分類/頁碼變動時打後端（搜尋框防抖 400ms）
+  // 首次載入分類；搜尋/分類/頁碼/筆數變動時打後端（搜尋框防抖 400ms）
   useEffect(() => { loadCats(); }, []);
   useEffect(() => {
-    const t = setTimeout(() => loadList(search, catFilter, page), 400);
+    const t = setTimeout(() => loadList(search, catFilter, page, perPage), 400);
     return () => clearTimeout(t);
-  }, [search, catFilter, page]);
+  }, [search, catFilter, page, perPage]);
 
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? '未分類';
   const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.stock ?? 0), 0);
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
 
   function pickCover(f: File | undefined) {
     if (!f) return;
@@ -99,7 +101,7 @@ export default function AdminProductsPage() {
       setSearch('');
       setCatFilter('');
       setPage(0);
-      loadList('', '', 0);
+      loadList('', '', 0, perPage);
     } catch (e: any) {
       setMsg(`新增失敗：${e.message}`);
     } finally {
@@ -198,10 +200,22 @@ export default function AdminProductsPage() {
       )}
       {view === 'grid' && !rows.length && !loading && <div className="rounded-2xl bg-white p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
 
-      <div className="flex items-center justify-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
         <button onClick={() => setPage((v) => Math.max(0, v - 1))} disabled={page === 0 || loading} className="rounded-full border bg-white px-4 py-1.5 disabled:opacity-40">← 上一頁</button>
         <span className="text-neutral-500">第 {page + 1} / {pageCount} 頁</span>
         <button onClick={() => setPage((v) => Math.min(pageCount - 1, v + 1))} disabled={page >= pageCount - 1 || loading} className="rounded-full border bg-white px-4 py-1.5 disabled:opacity-40">下一頁 →</button>
+        <span className="flex items-center gap-1 text-neutral-500">
+          每頁
+          {PAGE_SIZE_OPTIONS.map((n) => (
+            <button key={n} onClick={() => { setPerPage(n); setPage(0); }} className={`rounded-full border px-2.5 py-1 text-xs ${perPage === n ? 'bg-black text-white' : 'bg-white'}`}>{n}</button>
+          ))}
+        </span>
+        <span className="flex items-center gap-1 text-neutral-500">
+          跳到第
+          <input value={jump} onChange={(e) => setJump(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { const n = Math.min(pageCount, Math.max(1, Number(jump) || 1)); setPage(n - 1); setJump(''); } }} type="number" min={1} max={pageCount} placeholder={String(page + 1)} className="w-14 rounded-full border bg-white px-2 py-1 text-center text-sm" />
+          頁
+          <button onClick={() => { const n = Math.min(pageCount, Math.max(1, Number(jump) || 1)); setPage(n - 1); setJump(''); }} className="rounded-full border bg-white px-3 py-1">前往</button>
+        </span>
       </div>
     </div>
   );
