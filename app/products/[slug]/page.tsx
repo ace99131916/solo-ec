@@ -95,7 +95,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
               <a key={r.slug} href={`/products/${r.slug}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
                 {r.cover_image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.cover_image} alt={r.name} className="h-24 w-full rounded-lg object-cover" loading="lazy" />
+                  <img src={r.cover_image} alt={r.name} className="h-24 w-full rounded-lg bg-neutral-50 object-contain" loading="lazy" />
                 ) : (
                   <div className="flex h-24 items-center justify-center rounded-lg bg-neutral-100 text-3xl">📦</div>
                 )}
