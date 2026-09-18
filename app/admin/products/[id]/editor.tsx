@@ -299,6 +299,30 @@ export default function ProductEditor({ productId }: { productId: string }) {
         onUpload={uploadDetailMedia}
         onRemove={removeDetailImage}
       />
+
+      <div className="rounded-2xl border border-ink-900/10 bg-white p-5 text-sm shadow-soft">
+        <div className="font-bold">圖片大圖預覽 <span className="ml-1 text-xs font-normal text-neutral-400">跟上方首圖＋多圖同一份資料，上面改這裡同步變</span></div>
+        {p.cover_image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.cover_image} alt={`${p.name} 首圖`} className="mt-2 max-h-96 w-full rounded-xl bg-neutral-50 object-contain" />
+        ) : (
+          <div className="mt-2 rounded-xl bg-neutral-100 p-6 text-center text-neutral-400">尚未上傳首圖</div>
+        )}
+        {(p.images ?? []).length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+            {(p.images ?? []).map((u: string) => (
+              <div key={u} className="overflow-hidden rounded-xl bg-neutral-50">
+                {/(\.mp4|\.webm|\.mov|\.m4v)(\?|$)/i.test(u) ? (
+                  <video src={u} controls preload="metadata" className="max-h-64 w-full" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={u} alt={`${p.name} 多圖`} className="max-h-64 w-full object-contain" loading="lazy" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
