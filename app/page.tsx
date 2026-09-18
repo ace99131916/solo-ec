@@ -120,19 +120,18 @@ export default async function Home() {
     }
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
     if (dbCats?.length) cats = dbCats;
-    // 男性/女性專區：該分類有勾精選的排前面，其餘按最新補滿 4 件（含首圖）
+    // 男性/女性專區：有勾精選的排前面，其餘按最新補滿 4 件（含首圖）
+    // 精選優先必須在資料庫排序（先取再排會漏掉 4 名外的舊精選）
     for (const [slug, set] of [['men', (v: any[]) => (menProducts = v)], ['women', (v: any[]) => (womenProducts = v)]] as const) {
       const { data: cp } = await supabase
         .from('products')
         .select('name,slug,base_price,cover_image,images,is_featured,categories!inner(slug)')
         .eq('is_active', true)
         .eq('categories.slug', slug)
+        .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(12);
-      if (cp?.length) {
-        const sorted = [...cp].sort((a: any, b: any) => Number(b.is_featured ?? false) - Number(a.is_featured ?? false));
-        set(sorted.slice(0, 4).map((x: any) => ({ ...x, cover_image: cardImage(x) })));
-      }
+        .limit(4);
+      if (cp?.length) set(cp.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
     }
   } catch {}
   if (!blocks.length) blocks = [...DEFAULT_BLOCKS].sort((a, b) => a.sort - b.sort);
