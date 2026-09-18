@@ -77,7 +77,7 @@ export default function AdminProductsPage() {
       if (error) { setMsg(`新增失敗：${error.message}`); return; }
       if (coverFile) {
         const safe = coverFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `${data.id}/${Date.now()}-${safe}`;
+        const path = `${form.slug.trim()}/${Date.now()}-${safe}`;
         const { error: upErr } = await sb.storage.from('product-images').upload(path, coverFile, { upsert: false });
         if (upErr) { setMsg(`商品已建但首圖上傳失敗：${upErr.message}（可到編輯頁補傳）`); }
         else {

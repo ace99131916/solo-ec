@@ -65,7 +65,8 @@ export default function ProductEditor({ productId }: { productId: string }) {
     try {
       const sb = createClient();
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${productId}/${Date.now()}-${safe}`;
+      const folder = (p as any)?.slug || productId;
+      const path = `${folder}/${Date.now()}-${safe}`;
       const { error: upErr } = await sb.storage.from('product-images').upload(path, file, { upsert: false });
       if (upErr) { setMsg(`上傳失敗：${upErr.message}`); return; }
       const { data } = sb.storage.from('product-images').getPublicUrl(path);
@@ -138,7 +139,8 @@ export default function ProductEditor({ productId }: { productId: string }) {
     try {
       const sb = createClient();
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${productId}/detail-${Date.now()}-${safe}`;
+      const folder = (p as any)?.slug || productId;
+      const path = `${folder}/detail-${Date.now()}-${safe}`;
       const { error: upErr } = await sb.storage.from('product-images').upload(path, file, { upsert: false });
       if (upErr) { setMsg(`上傳失敗：${upErr.message}`); return; }
       const { data } = sb.storage.from('product-images').getPublicUrl(path);
