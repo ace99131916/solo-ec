@@ -126,8 +126,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <h2 className="font-serif text-xl font-bold">商品圖</h2>
             <p className="mt-0.5 text-xs text-neutral-400">跟上方主圖＋多圖同一組，點圖可放大</p>
           </div>
-          <div className="px-6 py-6">
-            <ProductGallery name={product.name} cover={(product as any).cover_image} images={(product as any).images} />
+          <div className="space-y-5 px-6 py-6">
+            <DetailGallery name={product.name} images={[((product as any).cover_image) as string, ...((product as any).images ?? [])].filter(Boolean) as string[]} />
           </div>
         </section>
       )}
