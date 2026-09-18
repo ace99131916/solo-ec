@@ -332,6 +332,7 @@ function DetailBlock({ text, images, busy, onSave, onUpload, onRemove }: {
   onSave: (t: string) => void; onUpload: (f: File) => void; onRemove: (u: string) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
   const cur = draft ?? text;
   return (
     <div className="rounded-2xl border border-ink-900/10 bg-white p-5 text-sm shadow-soft">
@@ -358,11 +359,29 @@ function DetailBlock({ text, images, busy, onSave, onUpload, onRemove }: {
                 <span className="flex h-14 w-20 items-center justify-center rounded-lg bg-black text-[10px] text-white">▶ 影片</span>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={u} alt="" className="h-14 w-20 rounded-lg object-cover" loading="lazy" />
+                <img src={u} alt="" onClick={() => setZoom(u)} className="h-14 w-20 cursor-zoom-in rounded-lg object-cover" loading="lazy" title="點擊放大" />
               )}
               <button onClick={() => onRemove(u)} className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white group-hover:flex" title="移除">×</button>
             </span>
           ))}
+        </div>
+      )}
+      {zoom && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setZoom(null)}
+          role="dialog"
+          aria-label="介紹圖放大檢視"
+        >
+          <button
+            onClick={() => setZoom(null)}
+            aria-label="關閉"
+            className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1.5 text-lg text-white hover:bg-white/30"
+          >
+            ×
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom} alt="介紹圖放大" className="max-h-[88vh] max-w-[92vw] object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>

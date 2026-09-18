@@ -3,7 +3,7 @@ import { mockProducts } from '@/lib/mock';
 import { notFound } from 'next/navigation';
 import AddToCart from '@/components/AddToCart';
 import ProductGallery from '@/components/ProductGallery';
-import { isVideoUrl } from '@/lib/media';
+import DetailGallery from '@/components/DetailGallery';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,16 +116,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
             {(product as any).detail_text ? (
               <p className="whitespace-pre-line text-sm leading-7 text-neutral-700">{(product as any).detail_text}</p>
             ) : null}
-            {((product as any).detail_images ?? []).map((url: string, i: number) => (
-              <div key={`${url}-${i}`} className="overflow-hidden rounded-xl bg-neutral-100">
-                {isVideoUrl(url) ? (
-                  <video src={url} controls playsInline preload="metadata" className="max-h-[480px] w-full" />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={`${product.name} 介紹圖 ${i + 1}`} className="w-full object-cover" loading="lazy" />
-                )}
-              </div>
-            ))}
+            <DetailGallery name={product.name} images={(product as any).detail_images ?? []} />
           </div>
         </section>
       )}
