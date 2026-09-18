@@ -50,10 +50,12 @@ const DEFAULT_EYEBROWS: Record<string, string> = {
   categories: 'CURATED',
   featured: 'TOP SELECTION',
   brands: 'FLAGSHIP',
+  men: 'FOR HIM',
+  women: 'FOR HER',
   guides: 'JOURNAL',
 };
 
-export const EYEBROW_EDITABLE_IDS = ['categories', 'featured', 'brands', 'guides'];
+export const EYEBROW_EDITABLE_IDS = ['categories', 'featured', 'brands', 'men', 'women', 'guides'];
 
 export function getEyebrow(block?: SiteBlock): string {
   if (!block || !(block.id in DEFAULT_EYEBROWS)) return '';
@@ -121,7 +123,7 @@ export function getFooterPayload(block?: SiteBlock): Required<FooterPayload> {
   };
 }
 
-export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'guides', 'trust', 'footer'] as const;
+export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'men', 'women', 'guides', 'trust', 'footer'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
   {
@@ -177,6 +179,24 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     sort: 40,
     titleSize: 'md',
     theme: 'dark',
+  },
+  {
+    id: 'men',
+    title: '男性專區',
+    subtitle: '',
+    visible: true,
+    sort: 45,
+    titleSize: 'md',
+    theme: 'light',
+  },
+  {
+    id: 'women',
+    title: '女性專區',
+    subtitle: '',
+    visible: true,
+    sort: 46,
+    titleSize: 'md',
+    theme: 'light',
   },
   {
     id: 'guides',

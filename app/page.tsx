@@ -15,6 +15,50 @@ function ArrowIcon() {
   );
 }
 
+// 分類專區（男性/女性）：標題吃後台設定，商品自動抓該分類最新 4 件含首圖
+function ZoneSection({ block, items, catSlug }: { block: any; items: any[]; catSlug: string }) {
+  if (!block.visible || !items.length) return null;
+  return (
+    <section>
+      <div className="mb-5 flex items-end justify-between">
+        <div>
+          <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">{getEyebrow(block)}</div>
+          <h2 className={`mt-1 ${titleClass(block.titleSize)}`}>{block.title}</h2>
+          {block.subtitle ? <p className="mt-1 text-sm text-ink-700/60">{block.subtitle}</p> : null}
+        </div>
+        <a href={`/products?cat=${catSlug}`} className="group inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-ink-950">
+          看全部 <span className="transition-transform group-hover:translate-x-0.5"><ArrowIcon /></span>
+        </a>
+      </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {items.map((p, i) => (
+          <a
+            key={p.slug}
+            href={`/products/${p.slug}`}
+            className={`fade-in-up stagger-${(i % 4) + 1} card-lift group overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft`}
+          >
+            <div className="relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-cream-100 to-cream-200">
+              {p.cover_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.cover_image} alt={p.name} className="absolute inset-0 h-full w-full bg-white object-contain" loading="lazy" />
+              ) : (
+                <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-white/80 text-4xl text-ink-800 shadow-soft">📦</div>
+              )}
+            </div>
+            <div className="p-4">
+              <div className="truncate text-sm font-medium">{p.name}</div>
+              <div className="mt-1 font-serif text-base font-bold text-ink-950">NT$ {p.base_price}</div>
+              <div className="mt-3 rounded-full bg-ink-950 py-2 text-center text-xs font-medium text-white transition group-hover:bg-gold-600">
+                查看詳情
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function BagIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -61,6 +105,8 @@ export default async function Home() {
   let cats: { name: string; slug: string }[] = NAV.map((c) => ({ name: c.name, slug: c.slug }));
   let blocks: Awaited<ReturnType<typeof getSiteBlocks>> = [];
   let guides: Awaited<ReturnType<typeof getGuides>> = [];
+  let menProducts: any[] = [];
+  let womenProducts: any[] = [];
   try {
     const supabase = createServerClient();
     blocks = await getSiteBlocks(supabase);
@@ -73,6 +119,17 @@ export default async function Home() {
     }
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
     if (dbCats?.length) cats = dbCats;
+    // 男性/女性專區：各分類最新 4 件（含首圖）
+    for (const [slug, set] of [['men', (v: any[]) => (menProducts = v)], ['women', (v: any[]) => (womenProducts = v)]] as const) {
+      const { data: cp } = await supabase
+        .from('products')
+        .select('name,slug,base_price,cover_image,categories!inner(slug)')
+        .eq('is_active', true)
+        .eq('categories.slug', slug)
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (cp?.length) set(cp);
+    }
   } catch {}
   if (!blocks.length) blocks = [...DEFAULT_BLOCKS].sort((a, b) => a.sort - b.sort);
   const byId = new Map(blocks.map((bl) => [bl.id, bl]));
@@ -82,6 +139,8 @@ export default async function Home() {
   const brandBlock = byId.get('brands')!;
   const guideBlock = byId.get('guides')!;
   const trustBlock = byId.get('trust')!;
+  const menBlock = byId.get('men') ?? DEFAULT_BLOCKS.find((b) => b.id === 'men')!;
+  const womenBlock = byId.get('women') ?? DEFAULT_BLOCKS.find((b) => b.id === 'women')!;
   const heroPayload = getHeroPayload(hero);
 
   return (
@@ -246,6 +305,9 @@ export default async function Home() {
         </div>
       </section>
       )}
+
+      <ZoneSection block={menBlock} items={menProducts} catSlug="men" />
+      <ZoneSection block={womenBlock} items={womenProducts} catSlug="women" />
 
       {/* 知識專欄 */}
       {guideBlock.visible && (

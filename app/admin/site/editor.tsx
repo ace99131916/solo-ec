@@ -7,6 +7,8 @@ const BLOCK_LABEL: Record<string, string> = {
   announcement: '頂部公告列（最上方黑條）',
   line: 'LINE 浮動客服（右下角固定鈕）',
   footer: '頁尾設定',
+  men: '男性專區',
+  women: '女性專區',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',
