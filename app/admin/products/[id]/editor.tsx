@@ -17,10 +17,19 @@ export default function ProductEditor({ productId }: { productId: string }) {
 
   async function load() {
     const sb = createClient();
-    const { data, error } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,description,category_id,cover_image,images,detail_text,detail_images,product_skus(id,sku_code,spec_name,price,stock,is_active)').eq('id', productId).single();
+    const FULL = 'id,name,slug,is_active,is_featured,base_price,description,category_id,cover_image,images,detail_text,detail_images,pin_home,pin_men,pin_women,product_skus(id,sku_code,spec_name,price,stock,is_active)';
+    const LEGACY = 'id,name,slug,is_active,is_featured,base_price,description,category_id,cover_image,images,detail_text,detail_images,product_skus(id,sku_code,spec_name,price,stock,is_active)';
+    let { data, error } = await sb.from('products').select(FULL).eq('id', productId).single();
+    if (error && /pin_|column/i.test(error.message)) {
+      // zone-pins.sql 還沒跑：先照舊欄位讀，置頂開關會提示建表
+      const r2 = await sb.from('products').select(LEGACY).eq('id', productId).single();
+      data = r2.data as any;
+      error = r2.error as any;
+      if (!error) setMsg('置頂開關還沒啟用：請到 Supabase 執行 supabase/zone-pins.sql 一次再重整。');
+    }
     if (error) { setMsg(`載入失敗：${error.message}`); return; }
     setP(data);
-    setMsg('');
+    if (data && 'pin_home' in (data as any)) setMsg('');
     const { data: catData } = await sb.from('categories').select('id,name,slug').order('sort').limit(100);
     if (catData) setCats(catData);
   }
@@ -37,6 +46,18 @@ export default function ProductEditor({ productId }: { productId: string }) {
 
   async function toggle(field: 'is_active' | 'is_featured') {
     await createClient().from('products').update({ [field]: !(p as any)[field] }).eq('id', productId);
+    load();
+  }
+
+  // 各區獨立置頂：最新上市 / 男區 / 女區各自開關
+  async function togglePin(field: 'pin_home' | 'pin_men' | 'pin_women') {
+    const { error } = await createClient().from('products').update({ [field]: !(p as any)?.[field] }).eq('id', productId);
+    if (error) {
+      setMsg(/pin_|column/i.test(error.message)
+        ? '置頂開關還沒啟用：請到 Supabase 執行 supabase/zone-pins.sql 一次再重整。'
+        : `儲存失敗：${error.message}`);
+      return;
+    }
     load();
   }
 
@@ -180,13 +201,15 @@ export default function ProductEditor({ productId }: { productId: string }) {
           )}
           <div>
             <div className="text-lg font-bold">{p.name}</div>
-            <div className="text-xs text-neutral-500">{p.slug}｜NT$ {p.base_price}｜{cats.find((c) => c.id === p.category_id)?.name ?? '未分類'}{p.is_active === false ? '・已下架' : ''}{p.is_featured ? '・精選' : ''}</div>
+            <div className="text-xs text-neutral-500">{p.slug}｜NT$ {p.base_price}｜{cats.find((c) => c.id === p.category_id)?.name ?? '未分類'}{p.is_active === false ? '・已下架' : ''}{p.pin_home ? '・最新上市' : ''}{p.pin_men ? '・男區置頂' : ''}{p.pin_women ? '・女區置頂' : ''}</div>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
           <button onClick={() => { setEditingInfo(!editingInfo); setEditDraft({ name: p.name ?? '', description: p.description ?? '', category_id: p.category_id ?? '' }); }} className="rounded-full border px-3 py-1.5">{editingInfo ? '取消編輯' : '編輯名稱/分類/描述'}</button>
           <button onClick={() => toggle('is_active')} className="rounded-full border px-3 py-1.5">{p.is_active ? '下架' : '上架'}</button>
-          <button onClick={() => toggle('is_featured')} className="rounded-full border px-3 py-1.5">{p.is_featured ? '取消精選' : '設精選'}</button>
+          <button onClick={() => togglePin('pin_home')} className={`rounded-full border px-3 py-1.5 ${p.pin_home ? 'border-ink-950 bg-ink-950 text-white' : ''}`}>{p.pin_home ? '已在最新上市' : '放最新上市'}</button>
+          <button onClick={() => togglePin('pin_men')} className={`rounded-full border px-3 py-1.5 ${p.pin_men ? 'border-ink-950 bg-ink-950 text-white' : ''}`}>{p.pin_men ? '已在男區置頂' : '放男區置頂'}</button>
+          <button onClick={() => togglePin('pin_women')} className={`rounded-full border px-3 py-1.5 ${p.pin_women ? 'border-ink-950 bg-ink-950 text-white' : ''}`}>{p.pin_women ? '已在女區置頂' : '放女區置頂'}</button>
           <button onClick={deleteProduct} className="rounded-full border border-red-300 px-3 py-1.5 text-red-600">刪除商品</button>
         </div>
         {editingInfo && (

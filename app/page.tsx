@@ -114,16 +114,46 @@ export default async function Home() {
     guides = await getGuides(supabase);
     const { data: b } = await supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5);
     if (b?.length) banners = b;
-    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('is_featured', true).limit(8);
+    const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
+    if (dbCats?.length) cats = dbCats;
+  } catch {}
+  // 各區置頂各自獨立查詢（一區失敗不影響其他區；SQL 還沒跑就退回舊精選邏輯）
+  try {
+    const supabase = createServerClient();
+    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('pin_home', true).order('created_at', { ascending: false }).limit(8);
     if (p?.length) {
       featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
     }
-    const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
-    if (dbCats?.length) cats = dbCats;
-    // 男性/女性專區：有勾精選的排前面，其餘按最新補滿 4 件（含首圖）
-    // 精選優先必須在資料庫排序（先取再排會漏掉 4 名外的舊精選）
-    for (const [slug, set] of [['men', (v: any[]) => (menProducts = v)], ['women', (v: any[]) => (womenProducts = v)]] as const) {
-      const { data: cp } = await supabase
+  } catch {
+    try {
+      const supabase = createServerClient();
+      const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('is_featured', true).limit(8);
+      if (p?.length) {
+        featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
+      }
+    } catch {}
+  }
+  try {
+    const supabase = createServerClient();
+    // 男性/女性專區：各區置頂優先，其餘按最新補滿 4 件（含首圖）
+    for (const [slug, pin, set] of [
+      ['men', 'pin_men', (v: any[]) => (menProducts = v)],
+      ['women', 'pin_women', (v: any[]) => (womenProducts = v)],
+    ] as const) {
+      const { data: cp, error } = await supabase
+        .from('products')
+        .select('name,slug,base_price,cover_image,images,categories!inner(slug)')
+        .eq('is_active', true)
+        .eq('categories.slug', slug)
+        .order(pin, { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (!error && cp?.length) {
+        set(cp.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
+        continue;
+      }
+      // SQL 還沒跑：退回精選邏輯
+      const { data: fb } = await supabase
         .from('products')
         .select('name,slug,base_price,cover_image,images,is_featured,categories!inner(slug)')
         .eq('is_active', true)
@@ -131,7 +161,7 @@ export default async function Home() {
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(4);
-      if (cp?.length) set(cp.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
+      if (fb?.length) set(fb.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
     }
   } catch {}
   if (!blocks.length) blocks = [...DEFAULT_BLOCKS].sort((a, b) => a.sort - b.sort);
