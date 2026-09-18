@@ -12,7 +12,10 @@ type Line = {
   price: number;
   product_name: string;
   stock: number;
+  cover: string | null;
 };
+
+const COUPON_KEY = 'solo-ec-coupon';
 
 const skuMap = new Map(
   mockProducts.flatMap((p) =>
@@ -22,8 +25,15 @@ const skuMap = new Map(
 
 export default function CartPage() {
   const [lines, setLines] = useState<Line[]>([]);
-  const [coupon, setCoupon] = useState('WELCOME100');
+  const [coupon, setCoupon] = useState(() => {
+    try { return localStorage.getItem(COUPON_KEY) ?? 'WELCOME100'; } catch { return 'WELCOME100'; }
+  });
   const [userId, setUserId] = useState<string | null>(null);
+
+  function onCoupon(v: string) {
+    setCoupon(v);
+    try { localStorage.setItem(COUPON_KEY, v); } catch {}
+  }
 
   useEffect(() => {
     (async () => {
@@ -37,7 +47,7 @@ export default function CartPage() {
           // 登入：讀雲端購物車（唯一真相，不再回頭讀本機）
           const { data: rows } = await sb
             .from('cart_items')
-            .select('sku_id,qty,product_skus(spec_name,price,stock,products(name))');
+            .select('sku_id,qty,product_skus(spec_name,price,stock,products(name,cover_image))');
           const mapped: Line[] =
             rows?.map((r: any) => ({
               sku_id: r.sku_id,
@@ -46,6 +56,7 @@ export default function CartPage() {
               price: r.product_skus?.price ?? skuMap.get(r.sku_id)?.price ?? 0,
               product_name: r.product_skus?.products?.name ?? skuMap.get(r.sku_id)?.product_name ?? '商品',
               stock: r.product_skus?.stock ?? 99,
+              cover: r.product_skus?.products?.cover_image ?? null,
             })) ?? [];
           setLines(mapped);
         } else hydrateLocal();
@@ -65,10 +76,11 @@ export default function CartPage() {
             price: m?.price ?? 0,
             product_name: m?.product_name ?? '商品',
             stock: m?.stock ?? 99,
+            cover: null,
           };
         })
       );
-      // 訪客 localStorage 可能是真實 DB UUID（mock 表查不到），再向 DB 補查一次
+      // 訪客 localStorage 可能是真實 DB UUID（mock 表查不到），再向 DB 補查一次（含首圖）
       const unknownIds = local.filter((l) => !skuMap.get(l.sku_id)).map((l) => l.sku_id);
       if (unknownIds.length) {
         (async () => {
@@ -76,7 +88,7 @@ export default function CartPage() {
             const sb = createClient();
             const { data } = await sb
               .from('product_skus')
-              .select('id,spec_name,price,stock,products(name)')
+              .select('id,spec_name,price,stock,products(name,cover_image)')
               .in('id', unknownIds);
             if (data?.length) {
               const m = new Map((data as any[]).map((r: any) => [r.id, r]));
@@ -91,12 +103,14 @@ export default function CartPage() {
                       price: mock?.price ?? 0,
                       product_name: mock?.product_name ?? '商品（已下架？）',
                       stock: mock?.stock ?? 99,
+                      cover: null,
                     };
                   }
                   return {
                     sku_id: l.sku_id, qty: l.qty,
                     spec_name: hit.spec_name, price: hit.price,
                     product_name: hit.products?.name ?? '商品', stock: hit.stock,
+                    cover: hit.products?.cover_image ?? null,
                   };
                 })
               );
@@ -137,47 +151,55 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-xl font-bold">購物車</h1>
-      <div className="rounded-xl bg-white p-4 shadow-sm">
-        {lines.length === 0 && <p className="text-neutral-500">購物車是空的，去 <a className="text-blue-600" href="/products">逛逛</a>。</p>}
+      <h1 className="font-serif text-2xl font-bold tracking-tight">購物車</h1>
+      <div className="rounded-2xl border border-ink-900/10 bg-white p-4 shadow-soft">
+        {lines.length === 0 && <p className="text-ink-700/60">購物車是空的，去 <a className="font-medium text-gold-600 hover:underline" href="/products">逛逛</a>。</p>}
         {lines.map((l) => (
-          <div key={l.sku_id} className="border-b py-3 last:border-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">{l.product_name}</div>
-                <div className="text-sm text-neutral-500">{l.spec_name}｜NT$ {l.price}</div>
+          <div key={l.sku_id} className="border-b border-ink-900/5 py-3 last:border-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {l.cover ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={l.cover} alt={l.product_name} className="h-14 w-14 shrink-0 rounded-xl bg-neutral-50 object-contain" loading="lazy" />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-2xl">📦</div>
+                )}
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{l.product_name}</div>
+                  <div className="text-sm text-ink-700/55">{l.spec_name}｜NT$ {l.price}</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="rounded border px-2" onClick={() => changeQty(l.sku_id, l.qty - 1)}>−</button>
-                <span className="w-6 text-center">{l.qty}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <button className="rounded-full border border-ink-900/15 px-2.5 py-0.5 hover:bg-cream-100" onClick={() => changeQty(l.sku_id, l.qty - 1)}>−</button>
+                <span className="w-6 text-center text-sm font-medium">{l.qty}</span>
                 <button
-                  className="rounded border px-2 disabled:opacity-30" disabled={l.qty >= Math.min(l.stock, 99)}
+                  className="rounded-full border border-ink-900/15 px-2.5 py-0.5 hover:bg-cream-100 disabled:opacity-30" disabled={l.qty >= Math.min(l.stock, 99)}
                   title={l.qty >= l.stock ? `庫存僅剩 ${l.stock}` : '增加數量'}
                   onClick={() => changeQty(l.sku_id, Math.min(l.qty + 1, l.stock, 99))}>＋</button>
-                <button className="ml-2 text-sm text-red-600" onClick={() => { if (confirm(`移除「${l.product_name}」？`)) changeQty(l.sku_id, 0); }}>移除</button>
+                <button className="ml-1 text-sm text-red-600/80 hover:underline" onClick={() => { if (confirm(`移除「${l.product_name}」？`)) changeQty(l.sku_id, 0); }}>移除</button>
               </div>
             </div>
-            {l.qty >= l.stock && l.stock > 0 && <div className="mt-1 text-right text-xs text-orange-600">已達庫存上限（{l.stock}）</div>}
+            {l.qty >= l.stock && l.stock > 0 && <div className="mt-1 text-right text-xs text-amber-600">已達庫存上限（{l.stock}）</div>}
           </div>
         ))}
       </div>
       {lines.length > 0 && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-ink-900/10 bg-white p-4 shadow-soft">
           <div className="flex gap-2">
-            <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="優惠碼" className="w-full rounded border p-2" />
-            <button className="rounded border px-3" onClick={() => setCoupon('')}>清除</button>
+            <input value={coupon} onChange={(e) => onCoupon(e.target.value)} placeholder="優惠碼（如 WELCOME100，會自動帶入結帳）" className="w-full rounded-xl border border-ink-900/15 p-2 text-sm" />
+            <button className="shrink-0 rounded-full border border-ink-900/15 px-4 text-sm hover:bg-cream-100" onClick={() => onCoupon('')}>清除</button>
           </div>
           <div className="mt-3 space-y-1 text-sm">
             <div className="flex justify-between"><span>小計</span><span>NT$ {subtotal}</span></div>
             <div className="flex justify-between"><span>優惠</span><span>−NT$ {discount}</span></div>
             <div className="flex justify-between"><span>運費{shipping === 0 ? '（滿千免運）' : ''}</span><span>NT$ {shipping}</span></div>
-            <div className="flex justify-between font-bold"><span>合計</span><span>NT$ {total}</span></div>
+            <div className="flex justify-between border-t border-ink-900/10 pt-2 font-serif text-base font-bold"><span>合計</span><span>NT$ {total}</span></div>
           </div>
           <div className="mt-4 flex gap-2">
-            <button onClick={clear} className="rounded border px-4 py-2">清空</button>
-            <a href="/checkout" className="flex-1 rounded bg-black py-2 text-center text-white">前往結帳</a>
+            <button onClick={clear} className="rounded-full border border-ink-900/15 px-4 py-2 text-sm hover:bg-cream-100">清空</button>
+            <a href="/checkout" className="flex-1 rounded-full bg-ink-950 py-2 text-center text-sm font-bold text-white transition hover:bg-gold-600">前往結帳</a>
           </div>
-          {!userId && <p className="mt-2 text-xs text-neutral-500">訪客結帳可先預覽，正式送單需 <a className="text-blue-600" href="/login">登入</a>（登入後購物車自動合併）。</p>}
+          {!userId && <p className="mt-2 text-xs text-ink-700/55">訪客結帳可先預覽，正式送單需 <a className="font-medium text-gold-600 hover:underline" href="/login?next=/checkout">登入</a>（登入後購物車自動合併並回到結帳）。</p>}
         </div>
       )}
     </div>

@@ -21,22 +21,23 @@ export default function CheckoutResult() {
     })();
   }, []);
   return (
-    <div className="mx-auto max-w-lg rounded-xl bg-white p-6 text-center shadow-sm">
-      <h1 className="text-xl font-bold">付款結果</h1>
+    <div className="mx-auto max-w-lg rounded-3xl border border-ink-900/10 bg-white p-7 text-center shadow-soft">
+      <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">PAYMENT</div>
+      <h1 className="mt-1 font-serif text-2xl font-bold tracking-tight">付款結果</h1>
       {!order ? (
-        <p className="mt-2 text-sm text-neutral-500">{hint}</p>
+        <p className="mt-2 text-sm text-ink-700/60">{hint}</p>
       ) : (
-        <div className="mt-3 rounded-lg bg-neutral-50 p-4 text-sm">
-          <div className={`text-lg font-bold ${order.status === 'paid' ? 'text-green-700' : ''}`}>
-            {order.status === 'paid' ? '✅ 已付款成功' : `⌛ ${ORDER_STATUS_ZH[order.status] ?? order.status}（綠界通知約數秒）`}
+        <div className="mt-3 rounded-2xl bg-cream-100 p-4 text-sm">
+          <div className={`font-serif text-lg font-bold ${order.status === 'paid' ? 'text-emerald-700' : ''}`}>
+            {order.status === 'paid' ? '已付款成功' : `${ORDER_STATUS_ZH[order.status] ?? order.status}（綠界通知約數秒）`}
           </div>
-          <div className="mt-1">訂單 {order.order_no}｜NT$ {order.total}</div>
-          <a className="text-blue-600" href={`/account/orders/${order.id}`}>看訂單明細 →</a>
+          <div className="mt-1 text-ink-700/65">訂單 {order.order_no}｜NT$ {order.total}</div>
+          <a className="font-medium text-gold-600 hover:underline" href={`/account/orders/${order.id}`}>看訂單明細 →</a>
         </div>
       )}
       <div className="mt-4 flex gap-2">
-        <a href="/products" className="flex-1 rounded border py-2">繼續逛逛</a>
-        <a href="/account" className="flex-1 rounded bg-black py-2 text-white">查看訂單</a>
+        <a href="/products" className="flex-1 rounded-full border border-ink-900/15 py-2.5 text-sm hover:bg-cream-100">繼續逛逛</a>
+        <a href="/account" className="flex-1 rounded-full bg-ink-950 py-2.5 text-sm font-bold text-white transition hover:bg-gold-600">查看訂單</a>
       </div>
     </div>
   );

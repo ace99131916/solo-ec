@@ -9,6 +9,8 @@ import CvsPicker, { type CvsSelection } from '@/components/CvsPicker';
 
 type Line = { sku_id: string; qty: number; spec_name: string; price: number; product_name: string };
 
+const COUPON_KEY = 'solo-ec-coupon';
+
 const skuMap = new Map(
   mockProducts.flatMap((p) => p.skus.map((s) => [s.id, { ...s, product_name: p.name }]))
 );
@@ -23,10 +25,33 @@ export default function CheckoutPage() {
   const [err, setErr] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [coupon, setCoupon] = useState('');
+  const [filteredNote, setFilteredNote] = useState('');
+
+  // 送單前驗證：下架 / 缺貨 / 價格異常品項先剔除並告知，不等 RPC 報錯
+  async function verifyLines(raw: Line[]) {
+    if (!raw.length) { setLines([]); return; }
+    try {
+      const sb = createClient();
+      const { data } = await sb.from('product_skus').select('id,price,stock,is_active').in('id', raw.map((l) => l.sku_id));
+      const m = new Map((data ?? []).map((r: any) => [r.id, r]));
+      const ok: Line[] = [];
+      let dropped = 0;
+      for (const l of raw) {
+        const s = m.get(l.sku_id) as any;
+        if (!s || s.is_active === false || (s.stock ?? 0) <= 0 || (s.price ?? 0) <= 0) { dropped++; continue; }
+        ok.push({ ...l, price: s.price, qty: Math.min(l.qty, s.stock) });
+      }
+      setLines(ok);
+      setFilteredNote(dropped > 0 ? `有 ${dropped} 項商品已下架或缺貨，已自動移出本次結帳，請回購物車確認。` : '');
+    } catch {
+      setLines(raw);
+    }
+  }
 
   useEffect(() => {
     (async () => {
       try {
+        try { setCoupon(localStorage.getItem(COUPON_KEY) ?? ''); } catch {}
         const sb = createClient();
         const { data } = await sb.auth.getUser();
         setAuthed(!!data.user);
@@ -38,7 +63,7 @@ export default function CheckoutPage() {
             .from('cart_items')
             .select('sku_id,qty,product_skus(spec_name,price,products(name))');
           if (rows?.length) {
-            setLines(
+            await verifyLines(
               rows.map((r: any) => ({
                 sku_id: r.sku_id, qty: r.qty,
                 spec_name: r.product_skus?.spec_name ?? '?',
@@ -67,7 +92,7 @@ export default function CheckoutPage() {
             .in('id', unknown);
           if (skus?.length) {
             const m = new Map((skus as any[]).map((r: any) => [r.id, r]));
-            setLines(
+            await verifyLines(
               local.map((l) => {
                 const hit = m.get(l.sku_id) as any;
                 const mock = skuMap.get(l.sku_id);
@@ -79,7 +104,11 @@ export default function CheckoutPage() {
                 };
               })
             );
+          } else {
+            await verifyLines(base);
           }
+        } else {
+          await verifyLines(base);
         }
       } catch {
         setAuthed(false);
@@ -93,10 +122,10 @@ export default function CheckoutPage() {
   const total = Math.max(subtotal - discount, 0) + shipping;
 
   if (authed === false) {
-    router.push('/login');
-    return <p className="text-sm">請先登入，跳轉中…</p>;
+    router.push('/login?next=/checkout');
+    return <p className="text-sm text-ink-700/60">請先登入，跳轉中…</p>;
   }
-  if (authed === null) return <p className="text-sm">載入中…</p>;
+  if (authed === null) return <p className="text-sm text-ink-700/60">載入中…</p>;
 
   async function submit(fd: FormData) {
     setBusy(true);
@@ -153,46 +182,49 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-[1fr_320px]">
-      <form action={submit} className="space-y-3 rounded-xl bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-bold">結帳</h1>
-        <input name="name" placeholder="收件人" className="w-full rounded border p-2" required maxLength={30} />
+      {filteredNote && (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 md:col-span-2">{filteredNote}</p>
+      )}
+      <form action={submit} className="space-y-3 rounded-2xl border border-ink-900/10 bg-white p-6 shadow-soft">
+        <h1 className="font-serif text-2xl font-bold tracking-tight">結帳</h1>
+        <input name="name" placeholder="收件人" className="w-full rounded-xl border border-ink-900/15 p-2.5 text-sm" required maxLength={30} />
         <input
           name="phone" placeholder="手機（09 開頭 10 碼）" inputMode="numeric"
           pattern="09[0-9]{8}" title="請填 09 開頭共 10 碼"
-          className="w-full rounded border p-2" required
+          className="w-full rounded-xl border border-ink-900/15 p-2.5 text-sm" required
         />
         <div className="flex gap-2">
-          <label className={`flex-1 cursor-pointer rounded border p-2 text-center text-sm ${method === 'home' ? 'border-black bg-neutral-50 font-bold' : ''}`}>
-            <input type="radio" className="mr-1" checked={method === 'home'} onChange={() => setMethod('home')} /> 宅配
+          <label className={`flex-1 cursor-pointer rounded-xl border p-2.5 text-center text-sm transition ${method === 'home' ? 'border-ink-950 bg-cream-100 font-bold' : 'border-ink-900/15'}`}>
+            <input type="radio" className="mr-1 accent-black" checked={method === 'home'} onChange={() => setMethod('home')} /> 宅配
           </label>
-          <label className={`flex-1 cursor-pointer rounded border p-2 text-center text-sm ${method === 'cvs' ? 'border-black bg-neutral-50 font-bold' : ''}`}>
-            <input type="radio" className="mr-1" checked={method === 'cvs'} onChange={() => setMethod('cvs')} /> 超商取貨
+          <label className={`flex-1 cursor-pointer rounded-xl border p-2.5 text-center text-sm transition ${method === 'cvs' ? 'border-ink-950 bg-cream-100 font-bold' : 'border-ink-900/15'}`}>
+            <input type="radio" className="mr-1 accent-black" checked={method === 'cvs'} onChange={() => setMethod('cvs')} /> 超商取貨
           </label>
         </div>
         {method === 'home' ? (
-          <input name="address" placeholder="宅配地址（含郵遞區號更佳）" className="w-full rounded border p-2" required />
+          <input name="address" placeholder="宅配地址（含郵遞區號更佳）" className="w-full rounded-xl border border-ink-900/15 p-2.5 text-sm" required />
         ) : (
           <CvsPicker onPick={setCvs} />
         )}
         <input
-          name="coupon" placeholder="優惠碼 (如 WELCOME100)" value={coupon}
-          onChange={(e) => setCoupon(e.target.value)}
-          className="w-full rounded border p-2"
+          name="coupon" placeholder="優惠碼 (如 WELCOME100，購物車已填會自動帶入)" value={coupon}
+          onChange={(e) => { setCoupon(e.target.value); try { localStorage.setItem(COUPON_KEY, e.target.value); } catch {} }}
+          className="w-full rounded-xl border border-ink-900/15 p-2.5 text-sm"
         />
         {err && <p className="text-sm text-red-600">{err}</p>}
-        <button disabled={busy || !lines.length} className="w-full rounded bg-black py-2.5 font-bold text-white disabled:opacity-50">
+        <button disabled={busy || !lines.length} className="w-full rounded-full bg-ink-950 py-2.5 text-sm font-bold text-white transition hover:bg-gold-600 disabled:opacity-50">
           {busy ? '建立訂單中…' : `建立訂單並付款 NT$ ${total}`}
         </button>
-        <p className="text-xs text-neutral-400">隱密包裝出貨，品名標示「生活用品」。貼身用品拆封恕不退換。</p>
+        <p className="text-xs text-ink-700/50">隱密包裝出貨，品名標示「生活用品」。貼身用品拆封恕不退換。</p>
       </form>
-      <aside className="h-fit rounded-xl bg-white p-5 shadow-sm">
-        <h2 className="font-bold">訂單明細（{lines.length} 件）</h2>
-        {!lines.length && <p className="mt-2 text-sm text-neutral-500">購物車是空的，先去 <a className="text-blue-600" href="/products">逛逛</a>。</p>}
+      <aside className="h-fit rounded-2xl border border-ink-900/10 bg-white p-5 shadow-soft">
+        <h2 className="font-serif font-bold">訂單明細（{lines.length} 件）</h2>
+        {!lines.length && <p className="mt-2 text-sm text-ink-700/55">購物車是空的，先去 <a className="font-medium text-gold-600 hover:underline" href="/products">逛逛</a>。</p>}
         <ul className="mt-2 space-y-2 text-sm">
           {lines.map((l) => (
-            <li key={l.sku_id} className="flex justify-between gap-2 border-b pb-2">
-              <span>{l.product_name}<br /><span className="text-xs text-neutral-400">{l.spec_name} × {l.qty}</span></span>
-              <span className="whitespace-nowrap">NT$ {l.price * l.qty}</span>
+            <li key={l.sku_id} className="flex justify-between gap-2 border-b border-ink-900/5 pb-2">
+              <span>{l.product_name}<br /><span className="text-xs text-ink-700/50">{l.spec_name} × {l.qty}</span></span>
+              <span className="whitespace-nowrap font-medium">NT$ {l.price * l.qty}</span>
             </li>
           ))}
         </ul>
@@ -200,7 +232,7 @@ export default function CheckoutPage() {
           <div className="flex justify-between"><span>小計</span><span>NT$ {subtotal}</span></div>
           <div className="flex justify-between"><span>優惠 {discount > 0 && '(WELCOME100)'}</span><span>−NT$ {discount}</span></div>
           <div className="flex justify-between"><span>運費{shipping === 0 && subtotal > 0 ? '（滿千免運）' : ''}</span><span>NT$ {shipping}</span></div>
-          <div className="flex justify-between border-t pt-2 font-bold"><span>合計</span><span className="text-red-600">NT$ {total}</span></div>
+          <div className="flex justify-between border-t border-ink-900/10 pt-2 font-serif font-bold"><span>合計</span><span>NT$ {total}</span></div>
         </div>
       </aside>
     </div>

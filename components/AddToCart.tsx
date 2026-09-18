@@ -35,7 +35,7 @@ export default function AddToCart({ sku_id, disabled }: { sku_id: string; disabl
       <button
         onClick={add}
         disabled={disabled || busy}
-        className="rounded bg-black px-3 py-1 text-white disabled:opacity-40"
+        className="rounded-full bg-ink-950 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-gold-600 disabled:opacity-40"
       >
         {disabled ? '缺貨' : busy ? '加入中…' : '加入購物車'}
       </button>

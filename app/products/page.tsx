@@ -70,16 +70,16 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
       {!filtered.length && <p className="text-sm text-neutral-500">沒有符合商品（照片欄位先留空，上架後會顯示）。試試其他分類或清除搜尋。</p>}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {filtered.map((p) => (
-          <a key={p.slug} href={`/products/${p.slug}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
+          <a key={p.slug} href={`/products/${p.slug}`} className="rounded-2xl border border-ink-900/10 bg-white p-4 shadow-soft transition hover:-translate-y-0.5">
             {(p as any).cover_image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={(p as any).cover_image} alt={p.name} className="h-28 w-full rounded-lg bg-neutral-50 object-contain" loading="lazy" />
+              <img src={(p as any).cover_image} alt={p.name} className="h-28 w-full rounded-xl bg-neutral-50 object-contain" loading="lazy" />
             ) : (
-              <div className="flex h-28 items-center justify-center rounded-lg bg-neutral-100 text-4xl">📦</div>
+              <div className="flex h-28 items-center justify-center rounded-xl bg-neutral-100 text-4xl">📦</div>
             )}
-            <div className="mt-2 text-sm font-medium">{p.name}</div>
-            <div className="mt-1 line-clamp-2 text-xs text-neutral-500">{p.description}</div>
-            <div className="mt-1 font-bold text-red-600">NT$ {p.base_price}</div>
+            <div className="mt-2 truncate text-sm font-medium">{p.name}</div>
+            <div className="mt-1 line-clamp-2 text-xs text-ink-700/55">{p.description}</div>
+            <div className="mt-1 font-serif font-bold">NT$ {p.base_price}</div>
           </a>
         ))}
       </div>

@@ -42,35 +42,35 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const cat = (product as any).categories;
 
   return (
-    <div className="space-y-8">
-      <nav className="text-sm text-neutral-500">
-        <a href="/" className="hover:text-black">首頁</a> /{' '}
-        <a href="/products" className="hover:text-black">全部商品</a>
-        {cat && <> / <a href={`/products?cat=${cat.slug}`} className="hover:text-black">{cat.name}</a></>} / {product.name}
+    <div className="space-y-10">
+      <nav className="text-[13px] text-ink-700/50">
+        <a href="/" className="hover:text-ink-950">首頁</a> /{' '}
+        <a href="/products" className="hover:text-ink-950">全部商品</a>
+        {cat && <> / <a href={`/products?cat=${cat.slug}`} className="hover:text-ink-950">{cat.name}</a></>} / {product.name}
       </nav>
       <div className="grid gap-8 md:grid-cols-2">
         <ProductGallery name={product.name} cover={(product as any).cover_image} images={(product as any).images} />
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            {product.is_featured && <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">👑 熱銷</span>}
+            {product.is_featured && <span className="rounded-full bg-ink-950 px-2.5 py-0.5 text-xs font-bold text-gold-300">熱銷</span>}
             {soldOut
-              ? <span className="rounded-full bg-neutral-300 px-2 py-0.5 text-xs">補貨中</span>
+              ? <span className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs text-neutral-600">補貨中</span>
               : totalStock <= 5 && skus.length > 0
-                ? <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">⚠️ 僅剩 {totalStock} 件</span>
-                : <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">● 有現貨</span>}
+                ? <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">僅剩 {totalStock} 件</span>
+                : <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">有現貨</span>}
           </div>
-          <h1 className="mt-2 text-2xl font-bold">{product.name}</h1>
-          <div className="mt-1 text-2xl font-black text-red-600">
+          <h1 className="mt-2 font-serif text-2xl font-bold tracking-tight md:text-3xl">{product.name}</h1>
+          <div className="mt-1.5 font-serif text-2xl font-black text-ink-950">
             NT$ {minPrice}
-            {skus.length > 1 && <span className="text-sm font-normal text-neutral-400"> 起</span>}
+            {skus.length > 1 && <span className="font-sans text-sm font-normal text-ink-700/50"> 起</span>}
           </div>
-          <p className="mt-2 text-sm text-neutral-600">{product.description}</p>
+          <p className="mt-2 text-sm leading-6 text-ink-700/65">{product.description}</p>
           <div className="mt-4 space-y-2">
             {skus.map((sku: any) => (
-              <div key={sku.id} className="flex items-center justify-between rounded-lg border bg-white px-4 py-2.5">
+              <div key={sku.id} className="flex items-center justify-between rounded-xl border border-ink-900/10 bg-white px-4 py-2.5 shadow-soft">
                 <span className="text-sm">
-                  {sku.spec_name}｜<b>NT$ {sku.price}</b>｜
-                  {sku.stock === 0 ? <span className="text-neutral-400">缺貨</span> : sku.stock <= 5 ? <span className="text-orange-600">剩 {sku.stock}</span> : <span className="text-green-700">有貨</span>}
+                  {sku.spec_name}｜<b className="font-serif">NT$ {sku.price}</b>｜
+                  {sku.stock === 0 ? <span className="text-neutral-400">缺貨</span> : sku.stock <= 5 ? <span className="text-amber-600">剩 {sku.stock}</span> : <span className="text-emerald-700">有貨</span>}
                 </span>
                 <AddToCart sku_id={sku.id} disabled={sku.stock === 0} />
               </div>
@@ -78,29 +78,29 @@ export default async function ProductPage({ params }: { params: { slug: string }
             {skus.length === 0 && <p className="text-sm text-neutral-500">DB 版商品尚無 SKU，請到後台補建。</p>}
           </div>
           <div className="mt-4 flex gap-2">
-            <a href="/cart" className="flex-1 rounded-lg bg-black py-2.5 text-center font-bold text-white">前往購物車結帳 →</a>
+            <a href="/cart" className="flex-1 rounded-full bg-ink-950 py-2.5 text-center text-sm font-bold text-white transition hover:bg-gold-600">前往購物車結帳 →</a>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-neutral-500">
-            <div className="rounded-lg bg-white p-2">📦<br />隱密包裝出貨</div>
-            <div className="rounded-lg bg-white p-2">🚚<br />滿千免運・24H出貨</div>
-            <div className="rounded-lg bg-white p-2">🔒<br />綠界安全付款</div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-ink-700/60">
+            <div className="rounded-xl border border-ink-900/10 bg-white p-2.5 shadow-soft">隱密包裝出貨</div>
+            <div className="rounded-xl border border-ink-900/10 bg-white p-2.5 shadow-soft">滿千免運・24H出貨</div>
+            <div className="rounded-xl border border-ink-900/10 bg-white p-2.5 shadow-soft">綠界安全付款</div>
           </div>
         </div>
       </div>
       {related.length > 0 && (
         <section>
-          <h2 className="mb-3 font-bold">你可能也喜歡</h2>
+          <h2 className="mb-3 font-serif text-xl font-bold tracking-tight">你可能也喜歡</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {related.map((r: any) => (
-              <a key={r.slug} href={`/products/${r.slug}`} className="rounded-xl bg-white p-4 shadow-sm hover:shadow">
+              <a key={r.slug} href={`/products/${r.slug}`} className="rounded-2xl border border-ink-900/10 bg-white p-4 shadow-soft transition hover:-translate-y-0.5">
                 {r.cover_image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.cover_image} alt={r.name} className="h-24 w-full rounded-lg bg-neutral-50 object-contain" loading="lazy" />
+                  <img src={r.cover_image} alt={r.name} className="h-24 w-full rounded-xl bg-neutral-50 object-contain" loading="lazy" />
                 ) : (
-                  <div className="flex h-24 items-center justify-center rounded-lg bg-neutral-100 text-3xl">📦</div>
+                  <div className="flex h-24 items-center justify-center rounded-xl bg-neutral-100 text-3xl">📦</div>
                 )}
-                <div className="mt-2 text-sm font-medium">{r.name}</div>
-                <div className="font-bold text-red-600">NT$ {r.base_price}</div>
+                <div className="mt-2 truncate text-sm font-medium">{r.name}</div>
+                <div className="mt-0.5 font-serif font-bold">NT$ {r.base_price}</div>
               </a>
             ))}
           </div>

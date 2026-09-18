@@ -74,10 +74,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <a href="/login" className="shrink-0 whitespace-nowrap rounded-full bg-ink-950 px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-ink-800">登入</a>
           </nav>
           <div className="border-t border-ink-900/5 bg-cream-50 lg:hidden">
-            <div className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-4 py-2.5 text-[13px]">
-              {NAV.map((c) => (
-                <a key={c.slug} className="whitespace-nowrap text-ink-700/80" href={`/products?cat=${c.slug}`}>{c.name}</a>
-              ))}
+            <div className="mx-auto max-w-6xl space-y-2 px-4 py-2.5">
+              <form action="/products" className="flex items-center gap-1.5 rounded-full border border-ink-900/15 bg-white/70 px-3 py-1.5 text-sm transition focus-within:border-gold-500">
+                <span className="text-ink-700/60"><SearchIcon /></span>
+                <input name="q" placeholder="搜尋商品、品牌…" className="w-full bg-transparent text-[13px] outline-none placeholder:text-ink-700/40" />
+              </form>
+              <div className="flex gap-4 overflow-x-auto text-[13px]">
+                {NAV.map((c) => (
+                  <a key={c.slug} className="whitespace-nowrap text-ink-700/80" href={`/products?cat=${c.slug}`}>{c.name}</a>
+                ))}
+              </div>
             </div>
           </div>
         </header>
