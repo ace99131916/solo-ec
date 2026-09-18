@@ -120,6 +120,17 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </div>
         </section>
       )}
+      {([((product as any).cover_image) as string, ...((product as any).images ?? [])].filter(Boolean).length > 0) && (
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="border-b px-6 py-4">
+            <h2 className="font-serif text-xl font-bold">商品圖</h2>
+            <p className="mt-0.5 text-xs text-neutral-400">跟上方主圖＋多圖同一組，點圖可放大</p>
+          </div>
+          <div className="px-6 py-6">
+            <ProductGallery name={product.name} cover={(product as any).cover_image} images={(product as any).images} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

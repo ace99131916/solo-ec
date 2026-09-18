@@ -13,6 +13,7 @@ export default function ProductEditor({ productId }: { productId: string }) {
   const [skuDraft, setSkuDraft] = useState({ spec: '', price: '', stock: '' });
   const [editingSkuId, setEditingSkuId] = useState<string | null>(null);
   const [skuEditDraft, setSkuEditDraft] = useState({ spec: '', price: '', stock: '' });
+  const [previewZoom, setPreviewZoom] = useState<string | null>(null);
 
   async function load() {
     const sb = createClient();
@@ -301,10 +302,10 @@ export default function ProductEditor({ productId }: { productId: string }) {
       />
 
       <div className="rounded-2xl border border-ink-900/10 bg-white p-5 text-sm shadow-soft">
-        <div className="font-bold">圖片大圖預覽 <span className="ml-1 text-xs font-normal text-neutral-400">跟上方首圖＋多圖同一份資料，上面改這裡同步變</span></div>
+        <div className="font-bold">圖片大圖預覽 <span className="ml-1 text-xs font-normal text-neutral-400">跟上方首圖＋多圖同一份資料，上面改這裡同步變・點圖放大</span></div>
         {p.cover_image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.cover_image} alt={`${p.name} 首圖`} className="mt-2 max-h-96 w-full rounded-xl bg-neutral-50 object-contain" />
+          <img src={p.cover_image} alt={`${p.name} 首圖`} onClick={() => setPreviewZoom(p.cover_image)} className="mt-2 max-h-96 w-full cursor-zoom-in rounded-xl bg-neutral-50 object-contain" title="點擊放大" />
         ) : (
           <div className="mt-2 rounded-xl bg-neutral-100 p-6 text-center text-neutral-400">尚未上傳首圖</div>
         )}
@@ -316,10 +317,28 @@ export default function ProductEditor({ productId }: { productId: string }) {
                   <video src={u} controls preload="metadata" className="max-h-64 w-full" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={u} alt={`${p.name} 多圖`} className="max-h-64 w-full object-contain" loading="lazy" />
+                  <img src={u} alt={`${p.name} 多圖`} onClick={() => setPreviewZoom(u)} className="max-h-64 w-full cursor-zoom-in object-contain" loading="lazy" title="點擊放大" />
                 )}
               </div>
             ))}
+          </div>
+        )}
+        {previewZoom && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setPreviewZoom(null)}
+            role="dialog"
+            aria-label="圖片放大檢視"
+          >
+            <button
+              onClick={() => setPreviewZoom(null)}
+              aria-label="關閉"
+              className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1.5 text-lg text-white hover:bg-white/30"
+            >
+              ×
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewZoom} alt="放大檢視" className="max-h-[88vh] max-w-[92vw] object-contain" onClick={(e) => e.stopPropagation()} />
           </div>
         )}
       </div>
