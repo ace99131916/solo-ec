@@ -4,6 +4,7 @@ import { NAV } from '@/lib/shop';
 import { getSiteBlocks, titleClass, getHeroPayload, getEyebrow, DEFAULT_BLOCKS } from '@/lib/site-blocks';
 import { getGuides } from '@/lib/guides';
 import HeroCarousel from '@/components/HeroCarousel';
+import { cardImage } from '@/lib/media';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,9 +114,9 @@ export default async function Home() {
     guides = await getGuides(supabase);
     const { data: b } = await supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5);
     if (b?.length) banners = b;
-    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image').eq('is_active', true).eq('is_featured', true).limit(8);
+    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('is_featured', true).limit(8);
     if (p?.length) {
-      featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: x.cover_image ?? null, is_featured: true, skus: [] }));
+      featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
     }
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
     if (dbCats?.length) cats = dbCats;
@@ -123,12 +124,12 @@ export default async function Home() {
     for (const [slug, set] of [['men', (v: any[]) => (menProducts = v)], ['women', (v: any[]) => (womenProducts = v)]] as const) {
       const { data: cp } = await supabase
         .from('products')
-        .select('name,slug,base_price,cover_image,categories!inner(slug)')
+        .select('name,slug,base_price,cover_image,images,categories!inner(slug)')
         .eq('is_active', true)
         .eq('categories.slug', slug)
         .order('created_at', { ascending: false })
         .limit(4);
-      if (cp?.length) set(cp);
+      if (cp?.length) set(cp.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
     }
   } catch {}
   if (!blocks.length) blocks = [...DEFAULT_BLOCKS].sort((a, b) => a.sort - b.sort);

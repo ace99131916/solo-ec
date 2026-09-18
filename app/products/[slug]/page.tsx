@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import AddToCart from '@/components/AddToCart';
 import ProductGallery from '@/components/ProductGallery';
 import DetailGallery from '@/components/DetailGallery';
+import { cardImage } from '@/lib/media';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,12 +26,12 @@ export default async function ProductPage({ params }: { params: { slug: string }
       if (data.category_id) {
         const { data: rel } = await supabase
           .from('products')
-          .select('name,slug,base_price,cover_image')
+          .select('name,slug,base_price,cover_image,images')
           .eq('is_active', true)
           .eq('category_id', data.category_id)
           .neq('slug', params.slug)
           .limit(4);
-        if (rel) related = rel;
+        if (rel) related = rel.map((x: any) => ({ ...x, cover_image: cardImage(x) }));
       }
     }
   } catch {}

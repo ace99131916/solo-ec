@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase';
 import { mockProducts, mockCategories } from '@/lib/mock';
 import { redirect } from 'next/navigation';
+import { cardImage } from '@/lib/media';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
     const supabase = createServerClient();
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort');
     if (dbCats?.length) cats = [{ slug: 'all', name: '全部' }, ...dbCats];
-    let query = supabase.from('products').select('name,slug,base_price,description,cover_image,created_at,categories(slug)', { count: 'exact' }).eq('is_active', true);
+    let query = supabase.from('products').select('name,slug,base_price,description,cover_image,images,created_at,categories(slug)', { count: 'exact' }).eq('is_active', true);
     if (cat !== 'all') query = query.eq('categories.slug', cat);
     if (q) query = query.ilike('name', `%${q}%`);
     if (sort === 'asc') query = query.order('base_price', { ascending: true });
@@ -48,7 +49,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
     if (data?.length) {
       products = data.map((p: any) => ({
         name: p.name, slug: p.slug, category: cat, description: p.description ?? '',
-        base_price: p.base_price, cover_image: p.cover_image ?? null, is_featured: false, skus: [],
+        base_price: p.base_price, cover_image: cardImage(p), is_featured: false, skus: [],
       }));
     } else if (q || cat !== 'all' || page1 > 1) {
       products = [];
