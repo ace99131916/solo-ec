@@ -1,41 +1,60 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
 // 商品管理列表：新增一次填完（圖片/規格/庫存/介紹），列表圖片/條列切換，點圖或點名進編輯頁
+// 搜尋＋分類＋分頁全部打後端查詢，商品再多也找得到
+const PAGE_SIZE = 48;
+
 export default function AdminProductsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '', spec: '標準', stock: '50', detail: '' });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState('');
 
-  async function load() {
+  async function loadCats() {
     const sb = createClient();
-    const { data, error } = await sb.from('products').select('id,name,slug,is_active,is_featured,base_price,category_id,cover_image,product_skus(stock,is_active)').order('created_at', { ascending: false }).limit(500);
-    if (error) { setMsg(`商品列表載入失敗：${error.message}`); return; }
-    if (data) setRows(data);
     const { data: catData } = await sb.from('categories').select('id,name,slug').order('sort').limit(100);
     if (catData) setCats(catData);
   }
-  useEffect(() => { load(); }, []);
+
+  async function loadList(q: string, cat: string, pg: number) {
+    setLoading(true);
+    try {
+      const sb = createClient();
+      let query = sb.from('products').select('id,name,slug,is_active,is_featured,base_price,category_id,cover_image,product_skus(stock,is_active)', { count: 'exact' });
+      const keyword = q.trim().replace(/[,()%]/g, '');
+      if (keyword) query = query.or(`name.ilike.%${keyword}%,slug.ilike.%${keyword}%`);
+      if (cat) query = query.eq('category_id', cat);
+      const from = pg * PAGE_SIZE;
+      const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+      if (error) { setMsg(`商品列表載入失敗：${error.message}`); return; }
+      setRows(data ?? []);
+      setTotal(count ?? 0);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 首次載入分類；搜尋/分類/頁碼變動時打後端（搜尋框防抖 400ms）
+  useEffect(() => { loadCats(); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => loadList(search, catFilter, page), 400);
+    return () => clearTimeout(t);
+  }, [search, catFilter, page]);
 
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? '未分類';
   const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.stock ?? 0), 0);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rows.filter((p) => {
-      if (catFilter && (p.category_id ?? '') !== catFilter) return false;
-      if (q && !`${p.name} ${p.slug}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [rows, search, catFilter]);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function pickCover(f: File | undefined) {
     if (!f) return;
@@ -77,7 +96,10 @@ export default function AdminProductsPage() {
       setForm({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '', spec: '標準', stock: '50', detail: '' });
       setCoverFile(null);
       setCoverPreview('');
-      load();
+      setSearch('');
+      setCatFilter('');
+      setPage(0);
+      loadList('', '', 0);
     } catch (e: any) {
       setMsg(`新增失敗：${e.message}`);
     } finally {
@@ -124,8 +146,8 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜尋商品名 / slug…" className="w-56 rounded-full border bg-white px-4 py-1.5 text-sm" />
-        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="rounded-full border bg-white px-3 py-1.5 text-sm">
+        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="搜尋商品名 / slug（後端查詢）…" className="w-56 rounded-full border bg-white px-4 py-1.5 text-sm" />
+        <select value={catFilter} onChange={(e) => { setCatFilter(e.target.value); setPage(0); }} className="rounded-full border bg-white px-3 py-1.5 text-sm">
           <option value="">全部分類</option>
           {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -133,12 +155,12 @@ export default function AdminProductsPage() {
           <button onClick={() => setView('grid')} className={`px-4 py-1.5 ${view === 'grid' ? 'bg-black text-white' : ''}`}>圖片</button>
           <button onClick={() => setView('list')} className={`px-4 py-1.5 ${view === 'list' ? 'bg-black text-white' : ''}`}>條列</button>
         </span>
-        <span className="text-xs text-neutral-400">{filtered.length} / {rows.length} 件</span>
+        <span className="text-xs text-neutral-400">{loading ? '查詢中…' : `第 ${page + 1} / ${pageCount} 頁・共 ${total} 件`}</span>
       </div>
 
       {view === 'grid' ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {filtered.map((p) => (
+          {rows.map((p) => (
             <a key={p.id} href={`/admin/products/${p.id}`} className="group overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft transition hover:-translate-y-0.5">
               {p.cover_image ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +178,7 @@ export default function AdminProductsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-soft">
-          {filtered.map((p) => (
+          {rows.map((p) => (
             <a key={p.id} href={`/admin/products/${p.id}`} className="flex items-center gap-3 border-b px-4 py-2.5 text-sm last:border-0 hover:bg-neutral-50">
               {p.cover_image ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -171,10 +193,16 @@ export default function AdminProductsPage() {
               {p.is_active === false && <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs">已下架</span>}
             </a>
           ))}
-          {!filtered.length && <div className="p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
+          {!rows.length && !loading && <div className="p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
         </div>
       )}
-      {view === 'grid' && !filtered.length && <div className="rounded-2xl bg-white p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
+      {view === 'grid' && !rows.length && !loading && <div className="rounded-2xl bg-white p-6 text-center text-sm text-neutral-400">找不到商品，換個關鍵字或分類。</div>}
+
+      <div className="flex items-center justify-center gap-2 text-sm">
+        <button onClick={() => setPage((v) => Math.max(0, v - 1))} disabled={page === 0 || loading} className="rounded-full border bg-white px-4 py-1.5 disabled:opacity-40">← 上一頁</button>
+        <span className="text-neutral-500">第 {page + 1} / {pageCount} 頁</span>
+        <button onClick={() => setPage((v) => Math.min(pageCount - 1, v + 1))} disabled={page >= pageCount - 1 || loading} className="rounded-full border bg-white px-4 py-1.5 disabled:opacity-40">下一頁 →</button>
+      </div>
     </div>
   );
 }
