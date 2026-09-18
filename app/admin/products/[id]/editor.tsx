@@ -305,19 +305,19 @@ export default function ProductEditor({ productId }: { productId: string }) {
         <div className="font-bold">圖片大圖預覽 <span className="ml-1 text-xs font-normal text-neutral-400">跟上方首圖＋多圖同一份資料，上面改這裡同步變・點圖放大</span></div>
         {p.cover_image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.cover_image} alt={`${p.name} 首圖`} onClick={() => setPreviewZoom(p.cover_image)} className="mt-2 max-h-96 w-full cursor-zoom-in rounded-xl bg-neutral-50 object-contain" title="點擊放大" />
+          <img src={p.cover_image} alt={`${p.name} 首圖`} onClick={() => setPreviewZoom(p.cover_image)} className="mt-2 w-full cursor-zoom-in rounded-xl bg-neutral-50" title="點擊放大" />
         ) : (
           <div className="mt-2 rounded-xl bg-neutral-100 p-6 text-center text-neutral-400">尚未上傳首圖</div>
         )}
         {(p.images ?? []).length > 0 && (
-          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+          <div className="mt-3 space-y-3">
             {(p.images ?? []).map((u: string) => (
               <div key={u} className="overflow-hidden rounded-xl bg-neutral-50">
                 {/(\.mp4|\.webm|\.mov|\.m4v)(\?|$)/i.test(u) ? (
-                  <video src={u} controls preload="metadata" className="max-h-64 w-full" />
+                  <video src={u} controls preload="metadata" className="w-full" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={u} alt={`${p.name} 多圖`} onClick={() => setPreviewZoom(u)} className="max-h-64 w-full cursor-zoom-in object-contain" loading="lazy" title="點擊放大" />
+                  <img src={u} alt={`${p.name} 多圖`} onClick={() => setPreviewZoom(u)} className="w-full cursor-zoom-in" loading="lazy" title="點擊放大" />
                 )}
               </div>
             ))}
