@@ -34,8 +34,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const found = blocks.find((b) => b.id === 'announcement');
     if (found) announcement = found;
     const line = blocks.find((b) => b.id === 'line');
-    if (line && line.visible && line.title.startsWith('http')) {
-      lineUrl = line.title.trim();
+    if (line && line.visible && line.title.trim().startsWith('http')) {
+      // 自動修正常見填錯格式：line.me/ti/p/~@xxx 或缺 /R/ 一律轉官方格式 line.me/R/ti/p/@xxx
+      lineUrl = line.title
+        .trim()
+        .replace('line.me/ti/p/~@', 'line.me/R/ti/p/@')
+        .replace('line.me/ti/p/@', 'line.me/R/ti/p/@');
       lineVisible = true;
     }
     footerPayload = getFooterPayload(blocks.find((b) => b.id === 'footer'));
