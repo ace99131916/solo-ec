@@ -65,10 +65,20 @@ export default async function ProductsPage({ searchParams }: { searchParams: { c
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-serif text-2xl font-bold tracking-tight">全部商品 {q ? `・搜尋「${q}」` : ''} <span className="ml-1 align-middle font-sans text-xs font-normal text-ink-700/50">共 {total} 件</span></h1>
-        <div className="flex gap-1 text-sm">
-          {[['new', '最新'], ['asc', '價格低→高'], ['desc', '價格高→低']].map(([v, t]) => (
-            <a key={v} href={link(v)} className={`rounded-full border px-3 py-1 transition ${sort === v ? 'border-ink-950 bg-ink-950 text-white' : 'border-ink-900/15 bg-white hover:bg-cream-100'}`}>{t}</a>
-          ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <form action="/products" className="flex items-center gap-1.5 rounded-full border border-ink-900/15 bg-white px-3 py-1.5 text-sm transition focus-within:border-gold-500">
+            {cat !== 'all' && <input type="hidden" name="cat" value={cat} />}
+            {sort !== 'new' && <input type="hidden" name="sort" value={sort} />}
+            {per !== PAGE_SIZE_DEFAULT && <input type="hidden" name="per" value={String(per)} />}
+            <input name="q" defaultValue={q} placeholder="搜尋商品名…" className="w-36 bg-transparent outline-none placeholder:text-ink-700/40 md:w-48" />
+            <button type="submit" className="shrink-0 rounded-full bg-ink-950 px-3 py-0.5 text-xs text-white hover:bg-gold-600">搜尋</button>
+            {q && <a href={(() => { const p = new URLSearchParams(); if (cat !== 'all') p.set('cat', cat); if (sort !== 'new') p.set('sort', sort); if (per !== PAGE_SIZE_DEFAULT) p.set('per', String(per)); const qs = p.toString(); return `/products${qs ? `?${qs}` : ''}`; })()} className="shrink-0 text-xs text-ink-700/55 hover:underline">清除</a>}
+          </form>
+          <div className="flex gap-1 text-sm">
+            {[['new', '最新'], ['asc', '價格低→高'], ['desc', '價格高→低']].map(([v, t]) => (
+              <a key={v} href={link(v)} className={`rounded-full border px-3 py-1 transition ${sort === v ? 'border-ink-950 bg-ink-950 text-white' : 'border-ink-900/15 bg-white hover:bg-cream-100'}`}>{t}</a>
+            ))}
+          </div>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
