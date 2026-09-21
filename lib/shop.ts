@@ -1,11 +1,12 @@
 // 全站設定：參考 redino.tw + gztoy.tw 合併後的架構
 // 照片先用佔位，文字為示範用中性描述（上線前請換成自家商品圖文）
 export const SITE = {
-  name: 'Solo EC Shop',
+  name: 'Solo Shop',
   slogan: '隱密包裝・24H出貨・全館滿千免運',
   serviceEmail: 'service@example.com',
   freeShippingThreshold: 1000,
   shippingFee: 60,
+  logo: 'https://uwunxvgjrgvzsmkzauyc.supabase.co/storage/v1/object/public/banners/logo.jpg',
 };
 
 export type NavChild = { name: string; slug: string };

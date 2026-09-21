@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     title: `${SITE.name}｜隱密包裝・24H出貨`,
     description: '隱密包裝・24H 出貨・滿千免運・綠界安全付款',
+    images: [{ url: SITE.logo }],
   },
   twitter: { card: 'summary', title: SITE.name, description: '隱密包裝・24H 出貨・滿千免運' },
   robots: { index: true, follow: true },
@@ -70,9 +71,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         )}
         <header className="sticky top-0 z-40 border-b border-ink-900/10 bg-cream-50/85 backdrop-blur-md">
           <nav className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5">
-            <a href="/" className="shrink-0 font-serif text-lg font-black tracking-tight">
+            <a href="/" className="flex shrink-0 items-center gap-2 font-serif text-lg font-black tracking-tight">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={SITE.logo} alt={SITE.name} className="h-9 w-9 rounded-full bg-white object-cover" />
               {SITE.name}
-              <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-gold-500 align-middle" />
             </a>
             <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-x-auto text-[13px] tracking-wide text-ink-700 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden">
               {NAV.slice(0, 8).map((c) => (
