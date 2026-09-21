@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Noto_Serif_TC, Noto_Sans_TC } from 'next/font/google';
 import './globals.css';
 import { NAV, SITE } from '@/lib/shop';
+import { SITE_URL } from '@/lib/seo';
 import { getSiteBlocks, DEFAULT_BLOCKS, getFooterPayload } from '@/lib/site-blocks';
 import { createServerClient } from '@/lib/supabase';
 import AgeGate from '@/components/AgeGate';
@@ -12,8 +13,22 @@ const serif = Noto_Serif_TC({ subsets: ['latin'], weight: ['600', '700', '900'],
 const sans = Noto_Sans_TC({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: `${SITE.name}｜隱密包裝・24H出貨`,
-  description: 'Next.js + Supabase 中小型購物車：前台＋會員中心＋管理後台＋綠界金流',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE.name}｜隱密包裝・24H出貨・滿千免運`,
+    template: `%s｜${SITE.name}`,
+  },
+  description: 'Next.js + Supabase 中小型購物車：隱密包裝、24H 出貨、滿千免運、綠界安全付款，每筆訂單 5% 點數回饋。',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    locale: 'zh_TW',
+    siteName: SITE.name,
+    title: `${SITE.name}｜隱密包裝・24H出貨`,
+    description: '隱密包裝・24H 出貨・滿千免運・綠界安全付款',
+  },
+  twitter: { card: 'summary', title: SITE.name, description: '隱密包裝・24H 出貨・滿千免運' },
+  robots: { index: true, follow: true },
 };
 
 function SearchIcon() {

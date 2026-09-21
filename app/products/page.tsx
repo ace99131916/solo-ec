@@ -1,12 +1,43 @@
 import { createServerClient } from '@/lib/supabase';
 import { mockProducts, mockCategories } from '@/lib/mock';
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import { cardImage } from '@/lib/media';
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE_DEFAULT = 24;
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+
+export async function generateMetadata({ searchParams }: { searchParams: { cat?: string; q?: string } }): Promise<Metadata> {
+  const cat = searchParams.cat ?? 'all';
+  const q = (searchParams.q ?? '').trim();
+  if (q) {
+    return {
+      title: `搜尋「${q}」`,
+      description: `搜尋「${q}」相關商品，隱密包裝・24H 出貨。`,
+      alternates: { canonical: '/products' },
+    };
+  }
+  if (cat !== 'all') {
+    try {
+      const supabase = createServerClient();
+      const { data } = await supabase.from('categories').select('name').eq('slug', cat).single();
+      if (data) {
+        return {
+          title: `${data.name}`,
+          description: `${data.name}分類商品一覽，隱密包裝・24H 出貨・滿千免運。`,
+          alternates: { canonical: `/products?cat=${cat}` },
+        };
+      }
+    } catch {}
+  }
+  return {
+    title: '全部商品',
+    description: '全部商品一覽：隱密包裝・24H 出貨・滿千免運・綠界安全付款。',
+    alternates: { canonical: '/products' },
+  };
+}
 
 export default async function ProductsPage({ searchParams }: { searchParams: { cat?: string; q?: string; sort?: string; page?: string; per?: string } }) {
   const cat = searchParams.cat ?? 'all';

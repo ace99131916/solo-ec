@@ -1,12 +1,39 @@
 import { createServerClient } from '@/lib/supabase';
 import { mockProducts } from '@/lib/mock';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import AddToCart from '@/components/AddToCart';
 import ProductGallery from '@/components/ProductGallery';
 import DetailGallery from '@/components/DetailGallery';
 import { cardImage } from '@/lib/media';
+import { SITE_URL, absUrl } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+// 每個商品獨立標題＋描述＋OG（Google 分頁收錄用）
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase.from('products').select('name,description,cover_image,images').eq('slug', params.slug).eq('is_active', true).single();
+    if (!data) return {};
+    const desc = (data.description ?? '').slice(0, 150) || '隱密包裝・24H 出貨・滿千免運';
+    const img = cardImage(data as any);
+    return {
+      title: data.name,
+      description: desc,
+      alternates: { canonical: `/products/${params.slug}` },
+      openGraph: {
+        type: 'website',
+        title: data.name,
+        description: desc,
+        url: absUrl(`/products/${params.slug}`),
+        ...(img ? { images: [{ url: img }] } : {}),
+      },
+    };
+  } catch {
+    return {};
+  }
+}
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
   let product: any = mockProducts.find((p) => p.slug === params.slug) ?? null;
@@ -42,8 +69,38 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const soldOut = skus.length > 0 && totalStock === 0;
   const cat = (product as any).categories;
 
+  // GEO：Product＋麵包屑結構化資料（Google 商品摘要＋AI 理解用）
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description ?? '',
+    url: absUrl(`/products/${product.slug}`),
+    category: cat?.name,
+    ...(cardImage(product as any) ? { image: [cardImage(product as any)] } : {}),
+    offers: {
+      '@type': 'Offer',
+      availability: soldOut ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      priceCurrency: 'TWD',
+      price: minPrice,
+      url: absUrl(`/products/${product.slug}`),
+    },
+  };
+  const crumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '首頁', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: '全部商品', item: absUrl('/products') },
+      ...(cat ? [{ '@type': 'ListItem', position: 3, name: cat.name, item: absUrl(`/products?cat=${cat.slug}`) }] : []),
+      { '@type': 'ListItem', position: cat ? 4 : 3, name: product.name },
+    ],
+  };
+
   return (
     <div className="space-y-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbJsonLd) }} />
       <nav className="text-[13px] text-ink-700/50">
         <a href="/" className="hover:text-ink-950">首頁</a> /{' '}
         <a href="/products" className="hover:text-ink-950">全部商品</a>

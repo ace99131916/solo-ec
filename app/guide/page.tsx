@@ -1,5 +1,12 @@
+import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
 import { getGuides } from '@/lib/guides';
+
+export const metadata: Metadata = {
+  title: '選購知識專欄・付款與物流說明',
+  description: '新手選購攻略、清潔保養、開箱評測怎麼看，以及付款、物流、退換貨與隱私說明。',
+  alternates: { canonical: '/guide' },
+};
 
 export const dynamic = 'force-dynamic';
 

@@ -5,6 +5,8 @@ import { getSiteBlocks, titleClass, getHeroPayload, getEyebrow, DEFAULT_BLOCKS }
 import { getGuides } from '@/lib/guides';
 import HeroCarousel from '@/components/HeroCarousel';
 import { cardImage } from '@/lib/media';
+import { SITE_URL } from '@/lib/seo';
+import { SITE } from '@/lib/shop';
 
 export const dynamic = 'force-dynamic';
 
@@ -176,8 +178,32 @@ export default async function Home() {
   const womenBlock = byId.get('women') ?? DEFAULT_BLOCKS.find((b) => b.id === 'women')!;
   const heroPayload = getHeroPayload(hero);
 
+  // GEO/AEO：讓搜尋引擎和 AI 一眼看懂這是什麼站
+  const orgJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE.name,
+    url: SITE_URL,
+    email: 'service@example.com',
+    slogan: '隱密包裝・24H出貨・全館滿千免運',
+  };
+  const siteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: SITE_URL,
+    inLanguage: 'zh-Hant',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${SITE_URL}/products?q={query}`,
+      'query-input': 'required name=query',
+    },
+  };
+
   return (
     <div className="space-y-12 md:space-y-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }} />
       {/* Hero：標題 / 描述吃後台設定 */}
       {hero.visible && (
       <section className="grain relative overflow-hidden rounded-3xl bg-ink-950 text-cream-50 shadow-lift">
