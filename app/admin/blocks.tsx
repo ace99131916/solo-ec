@@ -7,6 +7,8 @@ function Block({ title, table, fields, hint }: { title: string; table: string; f
   const [form, setForm] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
   const [sortDraft, setSortDraft] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
   async function load() {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) { setMsg('尚未設定 Supabase 連線（先照 DEPLOY.md 設定環境變數）'); return; }
@@ -59,6 +61,23 @@ function Block({ title, table, fields, hint }: { title: string; table: string; f
     await createClient().from(table).delete().eq('id', id);
     load();
   }
+  function startEdit(r: any) {
+    setEditingId(r.id);
+    const d: Record<string, string> = {};
+    fields.forEach((f) => { d[f.key] = r[f.key] ?? ''; });
+    setEditDraft(d);
+  }
+  async function saveEdit(id: string) {
+    const payload: any = {};
+    fields.forEach((f) => {
+      const v = editDraft[f.key] ?? '';
+      payload[f.key] = f.key === 'sort' ? Number(v) || 0 : v;
+    });
+    if (table === 'banners' && !payload.title) { setMsg('標題不可空白'); return; }
+    const { error } = await createClient().from(table).update(payload).eq('id', id);
+    setMsg(error ? `失敗：${error.message}` : '已儲存，前台即時生效。');
+    if (!error) { setEditingId(null); load(); }
+  }
   return (
     <div className="rounded bg-white p-4">
       <h2 className="font-bold">{title}</h2>
@@ -72,27 +91,47 @@ function Block({ title, table, fields, hint }: { title: string; table: string; f
       {msg && <span className="ml-2 text-sm">{msg}</span>}
       <ul className="mt-3 space-y-1 text-sm">
         {rows.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t py-1.5">
-            <span>{r.name ?? r.title ?? r.code} <span className="text-neutral-400">({r.slug ?? r.code ?? ''}){r.sort !== undefined ? `・排序 ${r.sort}` : ''} {r.is_active === false ? '・已停用' : ''}</span></span>
-            <span className="flex items-center gap-1">
-              {r.sort !== undefined && (
-                <span className="mr-1 flex items-center gap-1">
+          editingId === r.id ? (
+            <li key={r.id} className="grid gap-1.5 rounded-lg bg-neutral-50 p-2.5 md:grid-cols-2">
+              {fields.map((f) => (
+                <label key={f.key} className="block">
+                  <span className="text-xs text-neutral-500">{f.label}</span>
                   <input
-                    type="number"
-                    title="排序（數字小排前面，改完按儲存）"
-                    placeholder="排序"
-                    value={sortDraft[r.id] ?? ''}
-                    onChange={(e) => setSortDraft({ ...sortDraft, [r.id]: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveSort(r); }}
-                    className="w-16 rounded border px-1.5 py-0.5 text-xs"
+                    value={editDraft[f.key] ?? ''}
+                    onChange={(e) => setEditDraft({ ...editDraft, [f.key]: e.target.value })}
+                    className="mt-0.5 w-full rounded border bg-white px-2 py-1"
                   />
-                  <button onClick={() => saveSort(r)} disabled={sortDraft[r.id] === undefined || sortDraft[r.id] === ''} className="rounded border px-2 text-xs disabled:opacity-40">儲存</button>
-                </span>
-              )}
-              {r.is_active !== undefined && <button onClick={() => toggleActive(r)} className="rounded border px-2 text-xs">{r.is_active ? '停用' : '啟用'}</button>}
-              <button onClick={() => del(r.id)} className="rounded border px-2 text-xs text-red-600">刪</button>
-            </span>
-          </li>
+                </label>
+              ))}
+              <div className="flex gap-1.5 md:col-span-2">
+                <button onClick={() => saveEdit(r.id)} className="rounded bg-black px-3 py-1 text-xs text-white">儲存修改</button>
+                <button onClick={() => setEditingId(null)} className="rounded border px-3 py-1 text-xs">取消</button>
+              </div>
+            </li>
+          ) : (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-t py-1.5">
+              <span>{r.name ?? r.title ?? r.code} <span className="text-neutral-400">({r.slug ?? r.code ?? ''}){r.sort !== undefined ? `・排序 ${r.sort}` : ''} {r.is_active === false ? '・已停用' : ''}</span></span>
+              <span className="flex items-center gap-1">
+                <button onClick={() => startEdit(r)} className="rounded border px-2 text-xs">編輯</button>
+                {r.sort !== undefined && (
+                  <span className="mr-1 flex items-center gap-1">
+                    <input
+                      type="number"
+                      title="排序（數字小排前面，改完按儲存）"
+                      placeholder="排序"
+                      value={sortDraft[r.id] ?? ''}
+                      onChange={(e) => setSortDraft({ ...sortDraft, [r.id]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveSort(r); }}
+                      className="w-16 rounded border px-1.5 py-0.5 text-xs"
+                    />
+                    <button onClick={() => saveSort(r)} disabled={sortDraft[r.id] === undefined || sortDraft[r.id] === ''} className="rounded border px-2 text-xs disabled:opacity-40">儲存</button>
+                  </span>
+                )}
+                {r.is_active !== undefined && <button onClick={() => toggleActive(r)} className="rounded border px-2 text-xs">{r.is_active ? '停用' : '啟用'}</button>}
+                <button onClick={() => del(r.id)} className="rounded border px-2 text-xs text-red-600">刪</button>
+              </span>
+            </li>
+          )
         ))}
       </ul>
     </div>
