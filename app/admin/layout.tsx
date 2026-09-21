@@ -2,6 +2,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const links = [
     ['總覽', '/admin'],
     ['首頁版面', '/admin/site'],
+    ['最新資訊', '/admin/news'],
     ['知識專欄', '/admin/guides'],
     ['訂單管理', '/admin/orders'],
     ['商品管理', '/admin/products'],

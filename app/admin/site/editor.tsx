@@ -9,10 +9,10 @@ const BLOCK_LABEL: Record<string, string> = {
   footer: '頁尾設定',
   men: '男性專區',
   women: '女性專區',
+  news: '最新資訊（內容到最新資訊管理發布）',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',
-  brands: '品牌旗艦館',
   guides: '知識專欄',
   trust: '購物保障',
 };

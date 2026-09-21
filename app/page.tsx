@@ -3,6 +3,7 @@ import { mockBanners, mockProducts } from '@/lib/mock';
 import { NAV } from '@/lib/shop';
 import { getSiteBlocks, titleClass, getHeroPayload, getEyebrow, DEFAULT_BLOCKS } from '@/lib/site-blocks';
 import { getGuides } from '@/lib/guides';
+import { getNewsList, formatNewsDate } from '@/lib/news';
 import HeroCarousel from '@/components/HeroCarousel';
 import { cardImage } from '@/lib/media';
 import { SITE_URL } from '@/lib/seo';
@@ -110,10 +111,12 @@ export default async function Home() {
   let guides: Awaited<ReturnType<typeof getGuides>> = [];
   let menProducts: any[] = [];
   let womenProducts: any[] = [];
+  let newsList: Awaited<ReturnType<typeof getNewsList>> = [];
   try {
     const supabase = createServerClient();
     blocks = await getSiteBlocks(supabase);
     guides = await getGuides(supabase);
+    newsList = await getNewsList(supabase, 3);
     const { data: b } = await supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5);
     if (b?.length) banners = b;
     const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
@@ -171,11 +174,11 @@ export default async function Home() {
   const hero = byId.get('hero')!;
   const catBlock = byId.get('categories')!;
   const featBlock = byId.get('featured')!;
-  const brandBlock = byId.get('brands')!;
   const guideBlock = byId.get('guides')!;
   const trustBlock = byId.get('trust')!;
   const menBlock = byId.get('men') ?? DEFAULT_BLOCKS.find((b) => b.id === 'men')!;
   const womenBlock = byId.get('women') ?? DEFAULT_BLOCKS.find((b) => b.id === 'women')!;
+  const newsBlock = byId.get('news') ?? DEFAULT_BLOCKS.find((b) => b.id === 'news')!;
   const heroPayload = getHeroPayload(hero);
 
   // GEO/AEO：讓搜尋引擎和 AI 一眼看懂這是什麼站
@@ -335,38 +338,38 @@ export default async function Home() {
       </section>
       )}
 
-      {/* 品牌旗艦館 */}
-      {brandBlock.visible && (
-      <section className={`fade-in-up stagger-3 relative overflow-hidden rounded-3xl p-7 md:p-9 ${brandBlock.theme === 'light' ? 'border border-ink-900/10 bg-white text-ink-900 shadow-soft' : brandBlock.theme === 'gold' ? 'bg-gold-100 text-ink-900 shadow-soft' : 'bg-ink-900 text-cream-50'}`}>
-        <div className="pointer-events-none absolute -left-20 top-0 h-72 w-72 rounded-full bg-gold-500/15 blur-[80px]" />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
+      {/* 品牌旗艦館已下架（2026-09，占位保留方便日後重開） */}
+
+      <ZoneSection block={menBlock} items={menProducts} catSlug="men" />
+      <ZoneSection block={womenBlock} items={womenProducts} catSlug="women" />
+
+      {/* 最新資訊 */}
+      {newsBlock.visible && newsList.length > 0 && (
+      <section>
+        <div className="mb-5 flex items-end justify-between">
           <div>
-            <div className={`text-[11px] font-bold tracking-[0.28em] ${brandBlock.theme === 'light' || brandBlock.theme === 'gold' ? 'text-gold-600' : 'text-gold-300'}`}>{getEyebrow(brandBlock)}</div>
-            <h2 className={`mt-1 ${titleClass(brandBlock.titleSize)}`}>{brandBlock.title}</h2>
-            {brandBlock.subtitle ? <p className={`mt-1.5 text-sm ${brandBlock.theme === 'light' || brandBlock.theme === 'gold' ? 'text-ink-700/60' : 'text-cream-100/60'}`}>{brandBlock.subtitle}</p> : null}
+            <div className="text-[11px] font-bold tracking-[0.28em] text-gold-600">{getEyebrow(newsBlock)}</div>
+            <h2 className={`mt-1 ${titleClass(newsBlock.titleSize)}`}>{newsBlock.title}</h2>
+            {newsBlock.subtitle ? <p className="mt-1 text-sm text-ink-700/60">{newsBlock.subtitle}</p> : null}
           </div>
-          <a href="/products?cat=brand" className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm hover:border-gold-300 hover:text-gold-200">
-            進入品牌館 <ArrowIcon />
+          <a href="/news" className="group inline-flex items-center gap-1.5 text-sm font-medium text-ink-700 hover:text-ink-950">
+            更多資訊 <span className="transition-transform group-hover:translate-x-0.5"><ArrowIcon /></span>
           </a>
         </div>
-        <div className="relative mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            ['台灣品牌', '在地精選・快速到貨'],
-            ['日本品牌', '細膩工艺・人氣首選'],
-            ['歐美品牌', '設計大膽・材質頂級'],
-            ['獨家系列', '本站限定・限量發售'],
-          ].map(([b, d]) => (
-            <a key={b} href="/products?cat=brand" className="card-lift rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-sm">
-              <div className="font-serif text-base font-bold">{b}</div>
-              <div className="mt-1 text-xs leading-5 text-cream-100/55">{d}</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {newsList.slice(0, 3).map((n, i) => (
+            <a key={n.id} href={`/news#${n.slug}`} className="card-lift group rounded-2xl border border-ink-900/10 bg-white p-6 shadow-soft">
+              <div className="text-xs tracking-[0.15em] text-gold-600">{formatNewsDate(n.published_at ?? n.created_at)}</div>
+              <div className="mt-2 font-bold leading-7">{n.title}</div>
+              {n.excerpt ? <div className="mt-1.5 line-clamp-2 text-sm leading-6 text-ink-700/65">{n.excerpt}</div> : null}
+              <div className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-gold-600">
+                閱讀全文 <span className="transition-transform group-hover:translate-x-0.5"><ArrowIcon /></span>
+              </div>
             </a>
           ))}
         </div>
       </section>
       )}
-
-      <ZoneSection block={menBlock} items={menProducts} catSlug="men" />
-      <ZoneSection block={womenBlock} items={womenProducts} catSlug="women" />
 
       {/* 知識專欄 */}
       {guideBlock.visible && (

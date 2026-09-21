@@ -49,13 +49,13 @@ export function getHeroPayload(block?: SiteBlock): Required<HeroPayload> {
 const DEFAULT_EYEBROWS: Record<string, string> = {
   categories: 'CURATED',
   featured: 'TOP SELECTION',
-  brands: 'FLAGSHIP',
   men: 'FOR HIM',
   women: 'FOR HER',
+  news: 'NEWS',
   guides: 'JOURNAL',
 };
 
-export const EYEBROW_EDITABLE_IDS = ['categories', 'featured', 'brands', 'men', 'women', 'guides'];
+export const EYEBROW_EDITABLE_IDS = ['categories', 'featured', 'men', 'women', 'news', 'guides'];
 
 export function getEyebrow(block?: SiteBlock): string {
   if (!block || !(block.id in DEFAULT_EYEBROWS)) return '';
@@ -123,7 +123,7 @@ export function getFooterPayload(block?: SiteBlock): Required<FooterPayload> {
   };
 }
 
-export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'brands', 'men', 'women', 'guides', 'trust', 'footer'] as const;
+export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'men', 'women', 'news', 'guides', 'trust', 'footer'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
   {
@@ -172,15 +172,6 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     theme: 'light',
   },
   {
-    id: 'brands',
-    title: '品牌旗艦館',
-    subtitle: '原廠正貨・分區選購更快',
-    visible: true,
-    sort: 40,
-    titleSize: 'md',
-    theme: 'dark',
-  },
-  {
     id: 'men',
     title: '男性專區',
     subtitle: '',
@@ -195,6 +186,15 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     subtitle: '',
     visible: true,
     sort: 46,
+    titleSize: 'md',
+    theme: 'light',
+  },
+  {
+    id: 'news',
+    title: '最新資訊',
+    subtitle: '',
+    visible: true,
+    sort: 47,
     titleSize: 'md',
     theme: 'light',
   },
