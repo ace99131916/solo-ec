@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
 
 type Row = {
@@ -20,6 +20,8 @@ export default function GuidesAdmin() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [msg, setMsg] = useState('載入中…');
   const [tableMissing, setTableMissing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   async function load() {
     try {
@@ -85,6 +87,40 @@ export default function GuidesAdmin() {
     load();
   }
 
+  // 插入圖片：上傳到 Supabase 後把網址插進游標處（獨立一行，前台自動顯示為大圖）
+  async function insertImage(file: File) {
+    setUploading(true);
+    setMsg('圖片上傳中…');
+    try {
+      const sb = createClient();
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `guides/${Date.now()}-${safe}`;
+      const { error: upErr } = await sb.storage.from('product-images').upload(path, file, { upsert: false });
+      if (upErr) { setMsg(`上傳失敗：${upErr.message}`); return; }
+      const { data } = sb.storage.from('product-images').getPublicUrl(path);
+      const tag = `\n\n${data.publicUrl}\n\n`;
+      const ta = contentRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? active.content.length;
+        const end = ta.selectionEnd ?? start;
+        const next = active.content.slice(0, start) + tag + active.content.slice(end);
+        setActive({ content: next });
+        requestAnimationFrame(() => {
+          ta.focus();
+          const pos = start + tag.length;
+          ta.setSelectionRange(pos, pos);
+        });
+      } else {
+        setActive({ content: `${active.content}${tag}` });
+      }
+      setMsg('圖片已插入，記得按儲存。');
+    } catch (e: any) {
+      setMsg(`上傳失敗：${e.message}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const active = editing ?? form;
   const setActive = (p: Partial<Row & typeof EMPTY>) => {
     if (editing) setEditing({ ...editing, ...p });
@@ -124,8 +160,15 @@ export default function GuidesAdmin() {
         </label>
         <label className="mt-3 block text-sm">
           <span className="text-neutral-500">內文（/guide 頁顯示）</span>
-          <textarea value={active.content} onChange={(e) => setActive({ content: e.target.value })} rows={4} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="建議 800–1500 字，可內連商品…" />
+          <textarea ref={contentRef} value={active.content} onChange={(e) => setActive({ content: e.target.value })} rows={8} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="建議 800–1500 字，可內連商品…" />
         </label>
+        <div className="mt-1.5 flex items-center gap-2 text-sm">
+          <label className="cursor-pointer rounded-full border px-4 py-1.5 hover:bg-neutral-50">
+            {uploading ? '上傳中…' : '＋ 插入圖片'}
+            <input type="file" accept="image/*" className="hidden" disabled={uploading || tableMissing} onChange={(e) => { const f = e.target.files?.[0]; if (f) insertImage(f); e.target.value = ''; }} />
+          </label>
+          <span className="text-xs text-neutral-400">上傳後自動插進游標處，前台顯示為大圖</span>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
           <label className="flex items-center gap-2">
             排序
