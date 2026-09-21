@@ -61,7 +61,7 @@ export default function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
           >
             {b.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.image_url} alt={b.title} className="absolute inset-0 h-full w-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} />
+              <img src={b.image_url} alt={b.title} className="absolute inset-0 h-full w-full bg-ink-800 object-contain" loading={i === 0 ? 'eager' : 'lazy'} />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950" />
             )}
