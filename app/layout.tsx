@@ -77,6 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {SITE.name}
             </a>
             <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-x-auto text-[13px] tracking-wide text-ink-700 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden">
+              <a className="nav-link shrink-0 whitespace-nowrap font-medium text-gold-600 hover:text-gold-500" href="/news">最新資訊</a>
               {NAV.slice(0, 8).map((c) => (
                 <a key={c.slug} className="nav-link shrink-0 whitespace-nowrap hover:text-ink-950" href={`/products?cat=${c.slug}`}>{c.name}</a>
               ))}
@@ -97,6 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <input name="q" placeholder="搜尋商品、品牌…" className="w-full bg-transparent text-[13px] outline-none placeholder:text-ink-700/40" />
               </form>
               <div className="flex gap-4 overflow-x-auto text-[13px]">
+                <a className="whitespace-nowrap font-medium text-gold-600" href="/news">最新資訊</a>
                 {NAV.map((c) => (
                   <a key={c.slug} className="whitespace-nowrap text-ink-700/80" href={`/products?cat=${c.slug}`}>{c.name}</a>
                 ))}
