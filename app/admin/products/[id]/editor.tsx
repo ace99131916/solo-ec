@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
 // 單一商品編輯頁：基本資料＋圖片/影片＋規格庫存＋商品介紹
 export default function ProductEditor({ productId }: { productId: string }) {
+  const router = useRouter();
   const [p, setP] = useState<any | null>(null);
   const [cats, setCats] = useState<any[]>([]);
   const [msg, setMsg] = useState('載入中…');
@@ -34,6 +36,16 @@ export default function ProductEditor({ productId }: { productId: string }) {
     if (catData) setCats(catData);
   }
   useEffect(() => { load(); }, [productId]);
+
+  // 返回列表：優先回到離開時的那一頁/篩選（列表頁會把狀態寫進 sessionStorage）
+  function goBack() {
+    try {
+      const ret = sessionStorage.getItem('admin-products-return');
+      if (ret) { router.push(ret); return; }
+    } catch {}
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+    else router.push('/admin/products');
+  }
 
   async function syncBasePrice() {
     const sb = createClient();
@@ -186,7 +198,7 @@ export default function ProductEditor({ productId }: { productId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <a href="/admin/products" className="rounded-full border bg-white px-4 py-1.5 text-sm hover:bg-neutral-100">← 回商品列表</a>
+        <button onClick={goBack} className="rounded-full border bg-white px-4 py-1.5 text-sm hover:bg-neutral-100">← 回商品列表</button>
         <a href={`/products/${p.slug}`} target="_blank" className="rounded-full border bg-white px-4 py-1.5 text-sm hover:bg-neutral-100">前台預覽 ↗</a>
       </div>
       {msg && <div className="text-sm text-neutral-500">{msg}</div>}

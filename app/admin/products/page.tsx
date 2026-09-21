@@ -1,23 +1,30 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
 // 商品管理列表：新增一次填完（圖片/規格/庫存/介紹），列表圖片/條列切換，點圖或點名進編輯頁
 // 搜尋＋分類＋分頁全部打後端查詢，商品再多也找得到
+// 列表狀態（搜尋/分類/頁碼/筆數/檢視）同步到網址，從編輯頁回來會停在同一頁
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
 
-export default function AdminProductsPage() {
+export const dynamic = 'force-dynamic';
+
+function ProductList() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const initPer = Number(sp.get('per') ?? 48);
   const [rows, setRows] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
-  const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('');
-  const [page, setPage] = useState(0);
-  const [perPage, setPerPage] = useState(48);
+  const [search, setSearch] = useState(sp.get('q') ?? '');
+  const [catFilter, setCatFilter] = useState(sp.get('cat') ?? '');
+  const [page, setPage] = useState(Math.max(0, (Number(sp.get('page') ?? 1) || 1) - 1));
+  const [perPage, setPerPage] = useState(PAGE_SIZE_OPTIONS.includes(initPer) ? initPer : 48);
   const [jump, setJump] = useState('');
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [view, setView] = useState<'grid' | 'list'>(sp.get('view') === 'list' ? 'list' : 'grid');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', slug: '', base_price: 990, is_featured: false, description: '', category_id: '', spec: '標準', stock: '50', detail: '' });
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -53,6 +60,26 @@ export default function AdminProductsPage() {
     const t = setTimeout(() => loadList(search, catFilter, page, perPage), 400);
     return () => clearTimeout(t);
   }, [search, catFilter, page, perPage]);
+
+  // 列表狀態同步到網址：從編輯頁回來時停在同一頁/同一組篩選
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (search.trim()) p.set('q', search.trim());
+    if (catFilter) p.set('cat', catFilter);
+    if (page > 0) p.set('page', String(page + 1));
+    if (perPage !== 48) p.set('per', String(perPage));
+    if (view !== 'grid') p.set('view', view);
+    const qs = p.toString();
+    router.replace(`/admin/products${qs ? `?${qs}` : ''}`, { scroll: false });
+    try { sessionStorage.setItem('admin-products-return', `/admin/products${qs ? `?${qs}` : ''}`); } catch {}
+  }, [search, catFilter, page, perPage, view, router]);
+
+  // 從編輯頁返回時重抓（保證改名/改價即時可見，頁碼篩選不動）
+  useEffect(() => {
+    const onFocus = () => loadList(search, catFilter, page, perPage);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  });
 
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? '未分類';
   const stockOf = (p: any) => (p.product_skus ?? []).reduce((s: number, x: any) => s + (x.stock ?? 0), 0);
@@ -218,5 +245,13 @@ export default function AdminProductsPage() {
         </span>
       </div>
     </div>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-neutral-500">載入商品管理中…</p>}>
+      <ProductList />
+    </Suspense>
   );
 }
