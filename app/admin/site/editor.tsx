@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, getFooterPayload, getEyebrow, EYEBROW_EDITABLE_IDS, type SiteBlock } from '@/lib/site-blocks';
+import { DEFAULT_BLOCKS, SIZE_OPTIONS, THEME_OPTIONS, DEFAULT_HERO_PAYLOAD, getHeroPayload, getFooterPayload, getGuideInfo, getEyebrow, EYEBROW_EDITABLE_IDS, type SiteBlock } from '@/lib/site-blocks';
 
 const BLOCK_LABEL: Record<string, string> = {
   announcement: '頂部公告列（最上方黑條）',
@@ -10,10 +10,11 @@ const BLOCK_LABEL: Record<string, string> = {
   men: '男性專區',
   women: '女性專區',
   news: '最新資訊（內容到最新資訊管理發布）',
+  guides: '知識專欄（文章到知識專欄管理發布）',
+  guideinfo: '專欄付款物流說明（專欄頁頂部四段）',
   hero: '主視覺 Hero',
   categories: '熱門分類',
   featured: 'TOP 推薦',
-  guides: '知識專欄',
   trust: '購物保障',
 };
 
@@ -107,6 +108,16 @@ export default function SiteEditor() {
     );
   }
 
+  function patchGuideInfo(id: string, fn: (p: { payment: string; shipping: string; returns: string; privacy: string }) => { payment: string; shipping: string; returns: string; privacy: string }) {
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.id !== id) return r;
+        const cur = getGuideInfo(r);
+        return { ...r, payload: fn({ payment: cur.payment, shipping: cur.shipping, returns: cur.returns, privacy: cur.privacy }) };
+      })
+    );
+  }
+
   async function save(row: SiteBlock) {
     setSaving(row.id);
     setMsg('');
@@ -175,7 +186,7 @@ export default function SiteEditor() {
               </label>
             </div>
 
-            {r.id !== 'footer' && (
+            {r.id !== 'footer' && r.id !== 'guideinfo' && (
               <>
                 {EYEBROW_EDITABLE_IDS.includes(r.id) && (
                   <label className="mt-3 block text-sm">
@@ -262,6 +273,46 @@ export default function SiteEditor() {
               </button>
               <span className="text-xs text-neutral-400">只存這一區，不影響其他區</span>
             </div>
+
+            {r.id === 'guideinfo' && (
+              <div className="mt-3 rounded-xl bg-cream-50 p-4 text-sm">
+                <div className="font-bold">專欄頁頂部（標題＋四段說明）</div>
+                <label className="mt-2 block">
+                  <span className="text-neutral-500">頁面標題</span>
+                  <input
+                    value={r.title}
+                    onChange={(e) => patch(r.id, { title: e.target.value })}
+                    className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                  />
+                </label>
+                {(() => {
+                  const gi = getGuideInfo(r);
+                  return (
+                    <>
+                      {([
+                        ['payment', '付款方式'],
+                        ['shipping', '物流方式'],
+                        ['returns', '退換貨'],
+                        ['privacy', '隱私'],
+                      ] as const).map(([key, label]) => (
+                        <label key={key} className="mt-2 block">
+                          <span className="text-neutral-500">{label}</span>
+                          <textarea
+                            value={gi[key]}
+                            onChange={(e) => patchGuideInfo(r.id, (p) => ({ ...p, [key]: e.target.value }))}
+                            rows={2}
+                            className="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+                          />
+                        </label>
+                      ))}
+                      <p className="mt-2 text-xs text-neutral-400">
+                        若出現 payload 欄位不存在，請先到 Supabase 執行 supabase/guide-info.sql。
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             {r.id === 'footer' && (
               <div className="mt-3 rounded-xl bg-cream-50 p-4 text-sm">

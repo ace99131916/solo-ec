@@ -66,7 +66,6 @@ export function getEyebrow(block?: SiteBlock): string {
 
 export type FooterLink = { label: string; href: string };
 export type FooterColumn = { heading: string; links: FooterLink[] };
-
 export type FooterPayload = {
   about?: string[];
   email?: string;
@@ -123,7 +122,27 @@ export function getFooterPayload(block?: SiteBlock): Required<FooterPayload> {
   };
 }
 
-export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'men', 'women', 'news', 'guides', 'trust', 'footer'] as const;
+// 專欄頁頂部付款物流說明四段，存 payload，後台可改
+export type GuideInfo = { payment: string; shipping: string; returns: string; privacy: string };
+
+export const DEFAULT_GUIDE_INFO: Required<GuideInfo> = {
+  payment: '綠界金流：信用卡、ATM 轉帳、超商代碼。訂單成立後自動導向綠界，付款完成由 callback 自動更新為「已付款」。',
+  shipping: '宅配（本島 60 元，滿 1000 免運）／超商取貨（7-11、全家、萊爾富、OK）。隱密包裝，品名標示「生活用品」。',
+  returns: '貼身用品拆封恕不退換；瑕疵品 7 日內請拍照聯繫客服換貨。福利品、優惠套組售出恕不退換。',
+  privacy: '訂單明細不會出現在帳單，帳單顯示為綠界或商城名稱。會員資料僅用於出貨與客服。',
+};
+
+export function getGuideInfo(block?: SiteBlock): Required<GuideInfo> {
+  const p = (block?.payload ?? {}) as GuideInfo;
+  return {
+    payment: typeof p.payment === 'string' && p.payment ? p.payment : DEFAULT_GUIDE_INFO.payment,
+    shipping: typeof p.shipping === 'string' && p.shipping ? p.shipping : DEFAULT_GUIDE_INFO.shipping,
+    returns: typeof p.returns === 'string' && p.returns ? p.returns : DEFAULT_GUIDE_INFO.returns,
+    privacy: typeof p.privacy === 'string' && p.privacy ? p.privacy : DEFAULT_GUIDE_INFO.privacy,
+  };
+}
+
+export const BLOCK_IDS = ['announcement', 'line', 'hero', 'categories', 'featured', 'men', 'women', 'news', 'guides', 'guideinfo', 'trust', 'footer'] as const;
 
 export const DEFAULT_BLOCKS: SiteBlock[] = [
   {
@@ -195,6 +214,15 @@ export const DEFAULT_BLOCKS: SiteBlock[] = [
     subtitle: '',
     visible: true,
     sort: 47,
+    titleSize: 'md',
+    theme: 'light',
+  },
+  {
+    id: 'guideinfo',
+    title: '知識專欄・付款與物流說明',
+    subtitle: '',
+    visible: true,
+    sort: 0,
     titleSize: 'md',
     theme: 'light',
   },
