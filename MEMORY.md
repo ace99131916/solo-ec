@@ -15,6 +15,7 @@
 - [ ] 綠界換正式 MerchantID/Key/IV＋正式網域切換。
 
 ## Session log（新到舊）
+- 2026-09-17：Google Search Console HTML 驗證檔上線（等按驗證＋送 sitemap）。
 - 2026-09-17：商品列表狀態進網址，編輯返回停在同一頁/篩選。
 - 2026-09-17：Banner/分類/優惠券列表加整列編輯（標題/圖片/連結/排序都能改）。
 - 2026-09-17：LOGO 換新版（重傳 Supabase＋favicon 同步）。
