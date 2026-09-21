@@ -46,8 +46,6 @@ export const NAV: NavCat[] = [
     ],
   },
   { name: '保險套', slug: 'condom', children: [{ name: '超薄', slug: 'condom-thin' }, { name: '顆粒', slug: 'condom-dot' }, { name: '超值組', slug: 'condom-value' }] },
-  { name: '品牌館', slug: 'brand', children: [{ name: '台灣品牌', slug: 'brand-tw' }, { name: '日本品牌', slug: 'brand-jp' }, { name: '歐美品牌', slug: 'brand-eu' }] },
-  { name: '排行榜', slug: 'ranking', children: [] },
   { name: '知識專欄', slug: 'guide', children: [{ name: '選購攻略', slug: 'guide-buy' }, { name: '清潔保養', slug: 'guide-care' }, { name: '開箱評測', slug: 'guide-review' }] },
   { name: '全部商品', slug: 'all', children: [] },
 ];
