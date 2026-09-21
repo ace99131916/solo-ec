@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
 import { getNewsList, formatNewsDate } from '@/lib/news';
+import { renderRich } from '@/lib/richtext';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export default async function NewsPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={n.cover_image} alt={n.title} className="mt-3 w-full rounded-xl" loading="lazy" />
           ) : null}
-          {n.content ? <p className="mt-3 whitespace-pre-line text-sm leading-7 text-neutral-700">{n.content}</p> : null}
+          {n.content ? <div className="mt-3 space-y-3">{renderRich(n.content, n.title)}</div> : null}
         </article>
       ))}
     </div>
