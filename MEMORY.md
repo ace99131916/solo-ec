@@ -15,6 +15,7 @@
 - [ ] 綠界換正式 MerchantID/Key/IV＋正式網域切換。
 
 ## Session log（新到舊）
+- 2026-09-17：品牌改 Solo Shop＋LOGO 上線（Supabase banners/logo.jpg，header/favicon/OG 共用）。
 - 2026-09-17：SEO/AEO/GEO 全套（sitemap 1012條/robots/AI爬蟲放行/結構化資料/OG/獨立標題/llms.txt，本地實測通過）。
 - 2026-09-17：輪播圖改完整顯示不裁切。
 - 2026-09-17：各區獨立置頂（最新上市/男區/女區三開關，舊精選自動轉移）。
