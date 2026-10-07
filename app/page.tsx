@@ -112,52 +112,37 @@ export default async function Home() {
   let menProducts: any[] = [];
   let womenProducts: any[] = [];
   let newsList: Awaited<ReturnType<typeof getNewsList>> = [];
-  try {
-    const supabase = createServerClient();
-    blocks = await getSiteBlocks(supabase);
-    guides = await getGuides(supabase);
-    newsList = await getNewsList(supabase, 3);
-    const { data: b } = await supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5);
-    if (b?.length) banners = b;
-    const { data: dbCats } = await supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20);
-    if (dbCats?.length) cats = dbCats;
-  } catch {}
-  // 各區置頂各自獨立查詢（一區失敗不影響其他區；SQL 還沒跑就退回舊精選邏輯）
-  try {
-    const supabase = createServerClient();
-    const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('pin_home', true).order('created_at', { ascending: false }).limit(8);
-    if (p?.length) {
-      featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
-    }
-  } catch {
+  // 首頁 8 路查詢全部並行（一路卡住不拖累其他路，也不必排隊等）
+  const supabase = createServerClient();
+  const [blocksRes, guidesRes, newsRes, bannersRes, catsRes, featRes, menRes, womenRes] = await Promise.allSettled([
+    getSiteBlocks(supabase),
+    getGuides(supabase),
+    getNewsList(supabase, 3),
+    supabase.from('banners').select('*').eq('is_active', true).order('sort').limit(5),
+    supabase.from('categories').select('name,slug').eq('is_active', true).order('sort').limit(20),
+    supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('pin_home', true).order('created_at', { ascending: false }).limit(8),
+    supabase.from('products').select('name,slug,base_price,cover_image,images,categories!inner(slug)').eq('is_active', true).eq('categories.slug', 'men').order('pin_men', { ascending: false }).order('created_at', { ascending: false }).limit(4),
+    supabase.from('products').select('name,slug,base_price,cover_image,images,categories!inner(slug)').eq('is_active', true).eq('categories.slug', 'women').order('pin_women', { ascending: false }).order('created_at', { ascending: false }).limit(4),
+  ]);
+  if (blocksRes.status === 'fulfilled') blocks = blocksRes.value;
+  if (guidesRes.status === 'fulfilled') guides = guidesRes.value;
+  if (newsRes.status === 'fulfilled') newsList = newsRes.value;
+  if (bannersRes.status === 'fulfilled' && bannersRes.value.data?.length) banners = bannersRes.value.data;
+  if (catsRes.status === 'fulfilled' && catsRes.value.data?.length) cats = catsRes.value.data;
+  if (featRes.status === 'fulfilled' && featRes.value.data?.length) {
+    featured = featRes.value.data.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
+  } else if (featRes.status === 'rejected') {
+    // zone-pins.sql 還沒跑：退回舊精選邏輯
     try {
-      const supabase = createServerClient();
       const { data: p } = await supabase.from('products').select('name,slug,base_price,description,cover_image,images').eq('is_active', true).eq('is_featured', true).limit(8);
       if (p?.length) {
         featured = p.map((x: any) => ({ name: x.name, slug: x.slug, category: '', description: x.description ?? '', base_price: x.base_price, cover_image: cardImage(x), is_featured: true, skus: [] }));
       }
     } catch {}
   }
-  try {
-    const supabase = createServerClient();
-    // 男性/女性專區：各區置頂優先，其餘按最新補滿 4 件（含首圖）
-    for (const [slug, pin, set] of [
-      ['men', 'pin_men', (v: any[]) => (menProducts = v)],
-      ['women', 'pin_women', (v: any[]) => (womenProducts = v)],
-    ] as const) {
-      const { data: cp, error } = await supabase
-        .from('products')
-        .select('name,slug,base_price,cover_image,images,categories!inner(slug)')
-        .eq('is_active', true)
-        .eq('categories.slug', slug)
-        .order(pin, { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(4);
-      if (!error && cp?.length) {
-        set(cp.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
-        continue;
-      }
-      // SQL 還沒跑：退回精選邏輯
+  // 男女區 pin 欄位不存在時退回精選邏輯
+  async function zoneFallback(slug: 'men' | 'women', set: (v: any[]) => void) {
+    try {
       const { data: fb } = await supabase
         .from('products')
         .select('name,slug,base_price,cover_image,images,is_featured,categories!inner(slug)')
@@ -167,8 +152,18 @@ export default async function Home() {
         .order('created_at', { ascending: false })
         .limit(4);
       if (fb?.length) set(fb.map((x: any) => ({ ...x, cover_image: cardImage(x) })));
-    }
-  } catch {}
+    } catch {}
+  }
+  if (menRes.status === 'fulfilled' && !menRes.value.error && menRes.value.data?.length) {
+    menProducts = menRes.value.data.map((x: any) => ({ ...x, cover_image: cardImage(x) }));
+  } else {
+    await zoneFallback('men', (v) => (menProducts = v));
+  }
+  if (womenRes.status === 'fulfilled' && !womenRes.value.error && womenRes.value.data?.length) {
+    womenProducts = womenRes.value.data.map((x: any) => ({ ...x, cover_image: cardImage(x) }));
+  } else {
+    await zoneFallback('women', (v) => (womenProducts = v));
+  }
   if (!blocks.length) blocks = [...DEFAULT_BLOCKS].sort((a, b) => a.sort - b.sort);
   const byId = new Map(blocks.map((bl) => [bl.id, bl]));
   const hero = byId.get('hero')!;
